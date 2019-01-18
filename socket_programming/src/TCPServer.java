@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Scanner;
 
 public class TCPServer {
@@ -36,17 +37,29 @@ public class TCPServer {
     public void listenToClient(int port) {
         try {
             ServerSocket serverSocket = new ServerSocket(port);
-            Socket socket = serverSocket.accept();
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
+            /* set 2 minute timeout */
+            serverSocket.setSoTimeout(2 * 60 * 1000);
+            Socket socket = new Socket();
+            BufferedReader bufferedReader;
+            PrintWriter printWriter;
+            while (true) {
+                try {
+                    socket = serverSocket.accept();
+                    bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    printWriter = new PrintWriter(socket.getOutputStream(), true);
 
-            String inputString;
-            while ((inputString = bufferedReader.readLine()) != null) {
-                String outputString = processString(inputString);
-                printWriter.println(outputString);
+                    String inputString;
+                    while ((inputString = bufferedReader.readLine()) != null) {
+                        String outputString = processString(inputString);
+                        printWriter.println(outputString);
+                    }
+
+                    printWriter.close();
+                    bufferedReader.close();
+                } catch (Exception e) {
+                    break;
+                }
             }
-            printWriter.close();
-            bufferedReader.close();
             socket.close();
 
         } catch (Exception e) {

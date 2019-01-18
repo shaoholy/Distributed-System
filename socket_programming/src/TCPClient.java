@@ -48,7 +48,7 @@ public class TCPClient {
         } else if (args.length == 2) {
             address = args[0];
             if (args[1].trim().matches("\\d+")) {
-                port = Integer.parseInt(args[0]);
+                port = Integer.parseInt(args[1]);
                 System.out.printf("Using the port %d\n", port);
             } else {
                 System.err.println("Invalid port.");
@@ -62,7 +62,7 @@ public class TCPClient {
                     if (scanner.hasNextLine()) {
                         String line = scanner.nextLine();
                         String[] line_arg = line.trim().split("\\s+");
-                        if (line_arg.length == 2 && args[1].trim().matches("\\d+")) {
+                        if (line_arg.length == 2 && line_arg[1].trim().matches("\\d+")) {
                             address = line_arg[0];
                             port = Integer.parseInt(line_arg[1]);
                             System.out.printf("Using the port %d\n", port);
