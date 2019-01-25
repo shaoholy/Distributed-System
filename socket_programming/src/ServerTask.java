@@ -20,6 +20,7 @@ public class ServerTask extends Thread{
                     if (inputString.equals("Exit")) {
                         break;
                     }
+                    System.out.printf("From Client: %s\n", inputString);
                     String outputString = processString(inputString);
                     printWriter.println(outputString);
                 }
@@ -32,13 +33,13 @@ public class ServerTask extends Thread{
                 PrintWriter printWriter = new PrintWriter(this.socket.getOutputStream(), true);
                 printWriter.println("Close socket");
                 printWriter.close();
-                closeSocket();
+                closeSocket(socket);
                 System.err.printf("Timed out, thread %d exit\n", Thread.currentThread().getId());
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }catch (Exception e) {
-            closeSocket();
+            closeSocket(socket);
             e.printStackTrace();
         }
 
@@ -79,10 +80,10 @@ public class ServerTask extends Thread{
         return this.socket;
     }
 
-    public void closeSocket() {
-        if (!this.socket.isClosed()) {
+    public static void closeSocket(Socket s) {
+        if (!s.isClosed()) {
             try {
-                socket.close();
+                s.close();
             } catch (Exception e) {
                 e.printStackTrace();
             }
