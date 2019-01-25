@@ -29,17 +29,14 @@ public class ServerTask extends Thread{
             printWriter.close();
             bufferedReader.close();
         }catch (SocketTimeoutException timeoutException) {
-            try {
-                PrintWriter printWriter = new PrintWriter(this.socket.getOutputStream(), true);
-                printWriter.println("Close socket");
-                printWriter.close();
-                closeSocket(socket);
-                System.err.printf("Timed out, thread %d exit\n", Thread.currentThread().getId());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            /* if timed out, send close message to client
+             * and close socket
+             */
+            MultiThreadingTCPServer.sendCloseMessage(this.socket);
+            closeSocket(this.socket);
+            System.err.printf("Timed out, thread %d exit\n", Thread.currentThread().getId());
         }catch (Exception e) {
-            closeSocket(socket);
+            closeSocket(this.socket);
             e.printStackTrace();
         }
 

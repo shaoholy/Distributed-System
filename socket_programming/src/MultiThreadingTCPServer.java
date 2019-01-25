@@ -7,11 +7,15 @@ import java.util.Scanner;
 
 public class MultiThreadingTCPServer {
     public static final int DEFAULT_PORT = 1254;
+    public static final String CLOSE_MSG = "Close socket";
 
     public void listenToClient(int port) {
 
         List<Socket> sockets = new ArrayList<>();
 
+        /* add a shutdown hook to send close messages to all connected clients
+         * and close sockets
+         */
         Runtime.getRuntime().addShutdownHook(new Thread(){
             @Override
             public void run() {
@@ -30,10 +34,12 @@ public class MultiThreadingTCPServer {
             ServerSocket serverSocket = new ServerSocket(port);
             while (true) {
                 Socket socket = serverSocket.accept();
+                /* set timeout */
                 socket.setSoTimeout(14000);
                 sockets.add(socket);
                 ServerTask serverTask = new ServerTask();
                 serverTask.setSocket(socket);
+                /* open a thread here when new client comes to connet */
                 Thread serverThread = new Thread(serverTask);
                 serverThread.start();
             }
@@ -47,7 +53,7 @@ public class MultiThreadingTCPServer {
     public static void sendCloseMessage(Socket socket) {
         try {
             PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
-            printWriter.println("Close socket");
+            printWriter.println(CLOSE_MSG);
             printWriter.close();
         } catch (Exception e) {
             e.printStackTrace();

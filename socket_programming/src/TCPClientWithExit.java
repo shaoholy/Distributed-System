@@ -8,6 +8,7 @@ import java.util.Scanner;
 public class TCPClientWithExit {
     public static final String DEFAULT_SERVER_ADDRESS = "127.0.0.1";
     public static final int DEFAULT_SERVER_PORT = 1254;
+    public static final String CLOSE_MSG = "Close socket";
 
     public void connectToServer(String address, int port) {
         try {
@@ -16,13 +17,18 @@ public class TCPClientWithExit {
             PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
 
             Scanner scanner = new Scanner(System.in);
+            /* keep scanning input from console */
             while (true) {
+                System.out.print("Please give a string: ");
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
                     printWriter.println(line);
                     String str;
                     if ((str = bufferedReader.readLine()) != null) {
-                        if (str.equals("Close socket")) {
+                        /* if server send a close message,
+                         * client will exit
+                         */
+                        if (str.equals(CLOSE_MSG)) {
                             System.err.println("Socket is closed, client exiting...");
                             break;
                         }
