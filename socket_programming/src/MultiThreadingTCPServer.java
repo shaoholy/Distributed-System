@@ -15,18 +15,12 @@ public class MultiThreadingTCPServer {
         Runtime.getRuntime().addShutdownHook(new Thread(){
             @Override
             public void run() {
-                try {
-                    for (Socket s : sockets) {
-                        if (s.isClosed()) {
-                            continue;
-                        }
-                        PrintWriter printWriter = new PrintWriter(s.getOutputStream(), true);
-                        printWriter.println("Close socket");
-                        printWriter.close();
-                        s.close();
+                for (Socket s : sockets) {
+                    if (s.isClosed()) {
+                        continue;
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    sendCloseMessage(s);
+                    ServerTask.closeSocket(s);
                 }
                 System.out.println("Keyboard Interrupt, Shutdown...");
             }
@@ -47,6 +41,16 @@ public class MultiThreadingTCPServer {
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
+        }
+    }
+
+    public static void sendCloseMessage(Socket socket) {
+        try {
+            PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
+            printWriter.println("Close socket");
+            printWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
