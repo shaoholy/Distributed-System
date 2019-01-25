@@ -11,17 +11,17 @@ When timed out, server will print thread done and socket close message.
 
 Example: 
 
-    *>> javac MultiThreadingTCPServer.java*
-    *>> java MultiThreadingTCPServer*
-    or *>> java MultiThreadingTCPServer 1254*
+    >> javac MultiThreadingTCPServer.java
+    >> java MultiThreadingTCPServer
+    or >> java MultiThreadingTCPServer 1254
     
 if you are giving more than one argument, the program will ask you to provide only one agument.
 
 Example:
 
-    *>> java MultiThreadingTCPServer 1254 1222*
-    *Please give only one argument*
-    *>> 1254*
+    >> java MultiThreadingTCPServer 1254 1222
+    Please give only one argument
+    >> 1254
 
 ------------------------------------------
 ## TCPClientWithExit
