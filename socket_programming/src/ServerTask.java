@@ -3,11 +3,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.BlockingDeque;
 
 public class ServerTask extends Thread{
     private Socket socket;
-    private BlockingDeque blockingQueue;
 
     @Override
     public void run() {
@@ -17,14 +15,6 @@ public class ServerTask extends Thread{
 
             String inputString;
             while (true) {
-                if (blockingQueue.size() != 0) {
-                    printWriter.close();
-                    bufferedReader.close();
-                    this.socket.close();
-                    System.out.printf("Keyboard Interrupt, thread %d exit\n",
-                            Thread.currentThread().getId());
-                    break;
-                }
                 inputString = bufferedReader.readLine();
                 if (inputString != null) {
                     if (inputString.equals("Exit")) {
@@ -42,17 +32,13 @@ public class ServerTask extends Thread{
                 PrintWriter printWriter = new PrintWriter(this.socket.getOutputStream(), true);
                 printWriter.println("Close socket");
                 printWriter.close();
-                this.socket.close();
+                closeSocket();
                 System.err.printf("Timed out, thread %d exit\n", Thread.currentThread().getId());
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }catch (Exception e) {
-            try {
-                this.socket.close();
-            } catch (Exception se) {
-                se.printStackTrace();
-            }
+            closeSocket();
             e.printStackTrace();
         }
 
@@ -64,7 +50,7 @@ public class ServerTask extends Thread{
         int length = input.length();
         right = length - 1;
         char[] output = new char[length];
-        while (right > left) {
+        while (right >= left) {
             char l_char = reverseCase(input.charAt(left));
             char r_char = reverseCase(input.charAt(right));
             output[right] = l_char;
@@ -93,12 +79,14 @@ public class ServerTask extends Thread{
         return this.socket;
     }
 
-    public BlockingDeque getBlockingQueue() {
-        return blockingQueue;
-    }
-
-    public void setBlockingQueue(BlockingDeque blockingQueue) {
-        this.blockingQueue = blockingQueue;
+    public void closeSocket() {
+        if (!this.socket.isClosed()) {
+            try {
+                socket.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 }

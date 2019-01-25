@@ -23,7 +23,7 @@ public class TCPClientWithExit {
                     String str;
                     if ((str = bufferedReader.readLine()) != null) {
                         if (str.equals("Close socket")) {
-                            System.err.println("Timed out, socket closed, client exiting...");
+                            System.err.println("Socket is closed, client exiting...");
                             break;
                         }
                         System.out.println(str);

@@ -1,24 +1,31 @@
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.LinkedBlockingDeque;
 
 public class MultiThreadingTCPServer {
     public static final int DEFAULT_PORT = 1254;
 
     public void listenToClient(int port) {
 
-        // unbounded blocking queue
-        BlockingDeque<Boolean> blockingDeque = new LinkedBlockingDeque<>(1);
+        List<Socket> sockets = new ArrayList<>();
 
         Runtime.getRuntime().addShutdownHook(new Thread(){
             @Override
             public void run() {
-                blockingDeque.add(Boolean.FALSE);
                 try {
-                    Thread.sleep(5000);
-                }catch (Exception e) {
+                    for (Socket s : sockets) {
+                        if (s.isClosed()) {
+                            continue;
+                        }
+                        PrintWriter printWriter = new PrintWriter(s.getOutputStream(), true);
+                        printWriter.println("Close socket");
+                        printWriter.close();
+                        s.close();
+                    }
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
                 System.out.println("Keyboard Interrupt, Shutdown...");
@@ -30,17 +37,11 @@ public class MultiThreadingTCPServer {
             while (true) {
                 Socket socket = serverSocket.accept();
                 socket.setSoTimeout(14000);
+                sockets.add(socket);
                 ServerTask serverTask = new ServerTask();
                 serverTask.setSocket(socket);
-                serverTask.setBlockingQueue(blockingDeque);
                 Thread serverThread = new Thread(serverTask);
                 serverThread.start();
-
-                if (blockingDeque.size() != 0) {
-                    System.out.println("Keyboard Interrupt, main thread exit");
-                    System.exit(0);
-                }
-
             }
 
         } catch (Exception e) {
