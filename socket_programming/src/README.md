@@ -34,20 +34,20 @@ If the client does not connect to the server within 14 seconds, the socket will 
 
 Example:
 
-    *>> javac TCPClientWithExit.java*
-    *>> java TCPClientWithExit 127.0.0.1 1254*
-    or *>> java TCPClientWithExit*
+    >> javac TCPClientWithExit.java
+    >> java TCPClientWithExit 127.0.0.1 1254
+    or >> java TCPClientWithExit
     
 if you are giving only one argument or more than two argument, the program will ask you to provide two arguments:
 
-    *>> java TCPClientWithExit 127.0.0.1*
-    *Please give two arguments*
-    *>>127.0.0.1 1254*
+    >> java TCPClientWithExit 127.0.0.1
+    Please give two arguments
+    >>127.0.0.1 1254
 
 then you can provide the string that need to be processed:
 
-    *Please give a string: >> This is a TEST*
-    *tset A SI SIHt*
+    Please give a string: >> This is a TEST
+    tset A SI SIHt
 
 ------------------------------------------
 ## ServerTask
