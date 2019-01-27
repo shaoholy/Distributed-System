@@ -64,7 +64,7 @@ then you can provide the string that need to be processed:
     Please give a string: >> This is a TEST
     tset A SI SIHt
 
-you can also open multiple clients to connect to the multithreading server, they work the same and will give you a processed string result. Note that if you are using multiple clients to connect to the same single thread server, only the first client will work, since the server will keep listening to the first client in the main thread and won't be able to listen to other clients, and other clients cannot connect to the server once the server socket is closed, so you'll see an exception when other client tries to connect to the single thread server.
+you can also open multiple clients to connect to the multithreading server, they work the same and will give you a processed string result. Note that if you are using multiple clients to connect to the same single thread server, only the first client will work, since the server will keep listening to the first client in the main thread and won't be able to listen to other clients, and other clients cannot connect to the server once the server socket is closed, so you'll see an exception when other client tries to connect to the single thread server. After one client has done, open a new server socket.
 
 ------------------------------------------
 ## ServerTask
