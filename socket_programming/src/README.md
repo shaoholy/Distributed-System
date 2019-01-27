@@ -1,3 +1,14 @@
+------------------------------------------
+## TCPServer
+------------------------------------------
+
+Same running steps as the first assignment, compile the java file and run the class file with one argument indicating the port or without any argumen(the program will use a default port).
+
+Example:
+
+    >> javac TCPServer.java
+    >> java TCPServer
+    or >> java TCPServer 1254
 
 ------------------------------------------
 ## MultiThreadingTCPServer
@@ -22,6 +33,10 @@ Example:
     >> java MultiThreadingTCPServer 1254 1222
     Please give only one argument
     >> 1254
+
+For each socket the server created, it has a 14 seconds timeout, if you didn't send anything by some socket in 14 seconds, the socket will be closed, and server will send a close message to client to make sure the next time when client tries to send something, the client would know that the corresponding socket is closed. 
+
+Also, I add a shutdown hook, when the server got interrupt and will shutdown, it can firstly send close message to all clients and close all sockets. This is implemented by starting another thread to keep waiting for interrupt.
 
 ------------------------------------------
 ## TCPClientWithExit
@@ -49,8 +64,19 @@ then you can provide the string that need to be processed:
     Please give a string: >> This is a TEST
     tset A SI SIHt
 
+you can also open multiple clients to connect to the multithreading server, they work the same and will give you a processed string result. Note that if you are using multiple clients to connect to the same single thread server, only the first client will work, since the server will keep listening to the first client in the main thread and won't be able to give any feedback to other clients, and other clients can sucessfully create the socket but will be blocking when waiting for server response. Thus you'll see nothing even if you are expecting an exception.
+
 ------------------------------------------
 ## ServerTask
 ------------------------------------------
 
-the class extends thread and override run method to interact with client using socket.
+the class extends thread and override run method to interact with client using socket. The processing of string is implemented in this class.
+
+------------------------------------------
+## Other Notes
+------------------------------------------
+
+Exception in this program is mostly handled by printing error stack trace for debugging unknown bugs. Some exception is handled differently such as SocketTimeoutException. And some serious exception is handled by printing stack trace and forcely shuting down the program. More graceful exception handling will be used in the next project. 
+
+
+Another functionality which need to be noticed is the argument handling. If no valid argument is given, the program will only ask once for valid arguments, otherwise it will throw exception and then exit. Consistently asking for valid argument will be implemented in the next project. The other functionality is just as the question title. 

@@ -5,7 +5,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Scanner;
 
-public class TCPClientWithExit {
+public class TCPClientWithoutExit {
     public static final String DEFAULT_SERVER_ADDRESS = "127.0.0.1";
     public static final int DEFAULT_SERVER_PORT = 1254;
     public static final String CLOSE_MSG = "Close socket";
@@ -89,7 +89,7 @@ public class TCPClientWithExit {
             }
         }
 
-        TCPClientWithExit client = new TCPClientWithExit();
+        TCPClientWithoutExit client = new TCPClientWithoutExit();
         client.connectToServer(address, port);
     }
 }

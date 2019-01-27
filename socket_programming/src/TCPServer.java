@@ -12,7 +12,7 @@ public class TCPServer {
         int length = input.length();
         right = length - 1;
         char[] output = new char[length];
-        while (right > left) {
+        while (right >= left) {
             char l_char = reverseCase(input.charAt(left));
             char r_char = reverseCase(input.charAt(right));
             output[right] = l_char;
@@ -49,6 +49,7 @@ public class TCPServer {
 
                     String inputString;
                     while ((inputString = bufferedReader.readLine()) != null) {
+                        System.out.printf("From Client: %s\n", inputString);
                         String outputString = processString(inputString);
                         printWriter.println(outputString);
                     }
