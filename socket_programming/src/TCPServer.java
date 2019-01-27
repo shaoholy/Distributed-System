@@ -41,24 +41,23 @@ public class TCPServer {
             Socket socket = new Socket();
             BufferedReader bufferedReader;
             PrintWriter printWriter;
-            while (true) {
-                try {
-                    socket = serverSocket.accept();
-                    bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    printWriter = new PrintWriter(socket.getOutputStream(), true);
+            try {
+                socket = serverSocket.accept();
+                serverSocket.close();
+                bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                printWriter = new PrintWriter(socket.getOutputStream(), true);
 
-                    String inputString;
-                    while ((inputString = bufferedReader.readLine()) != null) {
-                        System.out.printf("From Client: %s\n", inputString);
-                        String outputString = processString(inputString);
-                        printWriter.println(outputString);
-                    }
-
-                    printWriter.close();
-                    bufferedReader.close();
-                } catch (Exception e) {
-                    break;
+                String inputString;
+                while ((inputString = bufferedReader.readLine()) != null) {
+                    System.out.printf("From Client: %s\n", inputString);
+                    String outputString = processString(inputString);
+                    printWriter.println(outputString);
                 }
+
+                printWriter.close();
+                bufferedReader.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             socket.close();
 

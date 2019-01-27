@@ -64,7 +64,7 @@ then you can provide the string that need to be processed:
     Please give a string: >> This is a TEST
     tset A SI SIHt
 
-you can also open multiple clients to connect to the multithreading server, they work the same and will give you a processed string result. Note that if you are using multiple clients to connect to the same single thread server, only the first client will work, since the server will keep listening to the first client in the main thread and won't be able to give any feedback to other clients, and other clients can sucessfully create the socket but will be blocking when waiting for server response. Thus you'll see nothing even if you are expecting an exception.
+you can also open multiple clients to connect to the multithreading server, they work the same and will give you a processed string result. Note that if you are using multiple clients to connect to the same single thread server, only the first client will work, since the server will keep listening to the first client in the main thread and won't be able to listen to other clients, and other clients cannot connect to the server once the server socket is closed, so you'll see an exception when other client tries to connect to the single thread server.
 
 ------------------------------------------
 ## ServerTask
@@ -76,7 +76,7 @@ the class extends thread and override run method to interact with client using s
 ## Other Notes
 ------------------------------------------
 
-Exception in this program is mostly handled by printing error stack trace for debugging unknown bugs. Some exception is handled differently such as SocketTimeoutException. And some serious exception is handled by printing stack trace and forcely shuting down the program. More graceful exception handling will be used in the next project. 
+Exception in this program is mostly handled by printing error stack trace for debugging unknown bugs. Some exception is handled differently such as SocketTimeoutException. And some serious exception is handled by printing stack trace and forcely shuting down the program. More graceful exception handling will be used in the project1 as requirement. 
 
 
-Another functionality which need to be noticed is the argument handling. If no valid argument is given, the program will only ask once for valid arguments, otherwise it will throw exception and then exit. Consistently asking for valid argument will be implemented in the next project. The other functionality is just as the question title. 
+Another functionality which need to be noticed is the argument handling. If no valid argument is given, the program will only ask once for valid arguments, otherwise it will throw exception and then exit. Consistently asking for valid argument will be implemented in the project1 as requirement. The other functionality is just as the question title. 
