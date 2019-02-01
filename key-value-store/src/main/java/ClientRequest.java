@@ -1,9 +1,9 @@
 public class ClientRequest {
-    public int getMethod() {
+    public String getMethod() {
         return method;
     }
 
-    public void setMethod(int method) {
+    public void setMethod(String method) {
         this.method = method;
     }
 
@@ -23,7 +23,7 @@ public class ClientRequest {
         this.value = value;
     }
 
-    public int method;
+    public String method;
     public String key;
     public String value;
 
