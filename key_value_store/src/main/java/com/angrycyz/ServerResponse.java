@@ -1,3 +1,5 @@
+package com.angrycyz;
+
 public class ServerResponse {
     public boolean isClosed() {
         return closed;

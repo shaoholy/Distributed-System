@@ -1,3 +1,5 @@
+package com.angrycyz;
+
 public class ClientRequest {
     public String getMethod() {
         return method;

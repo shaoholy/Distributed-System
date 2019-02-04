@@ -1,18 +1,19 @@
+package com.angrycyz;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class KeyValueStoreServer {
 
     public static final String TCP_COMM = "TCP";
     public static final String UDP_COMM = "UDP";
+    private static final Logger logger = LoggerFactory.getLogger(KeyValueStoreServer.class);
 
     public ServerConfig parseConfig(String configPath) {
         ObjectMapper mapper = new ObjectMapper();
@@ -49,7 +50,7 @@ public class KeyValueStoreServer {
 
         }
 
-        System.out.printf(Utility.getDate() + "Using the port %d\n", port);
+        logger.info("Using the port %d\n", port);
         KeyValueStoreServer server = new KeyValueStoreServer();
         String configPath = "etc/comm_config.json";
         System.out.printf(Utility.getDate() + "Parse config file from %s\n", configPath);

@@ -1,3 +1,5 @@
+package com.angrycyz;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;

@@ -1,3 +1,5 @@
+package com.angrycyz;
+
 public class ServerConfig {
     public String getComm() {
         return comm;
