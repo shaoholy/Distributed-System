@@ -3,6 +3,8 @@ package com.angrycyz;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 
 import java.text.DateFormat;
@@ -22,47 +24,8 @@ public class Utility {
         put("DELETE", 3);
     }};
 
-    public static Pair<String, Error> createRequest(String line) {
-        String[] lineArray = line.split(" ");
-        if (lineArray.length != 2 && lineArray.length != 3) {
-            return new Pair<String, Error>(null, new Error("Invalid operation"));
-        }
-        ObjectMapper objectMapper = new ObjectMapper();
-        String requestJson = "";
+    private static final Logger logger = LogManager.getLogger("Utility");
 
-        try {
-            String upperArg = lineArray[0].toUpperCase();
-            if (upperArg.equals("PUT")) {
-                if (lineArray.length == 2) {
-                    return new Pair<String, Error>(null,
-                            new Error("Usage: PUT <key> <value>"));
-                }
-                ClientRequest clientRequest = new ClientRequest();
-                clientRequest.method = upperArg;
-                clientRequest.key = lineArray[1];
-                clientRequest.value = lineArray[2];
-                requestJson = objectMapper.writeValueAsString(clientRequest);
-            } else if (upperArg.equals("GET") || upperArg.equals("DELETE")) {
-                if (lineArray.length == 3) {
-                    return new Pair<String, Error>(null,
-                            new Error("Usage: GET <key> " +
-                                    "   Or: DELETE <key>"));
-                }
-                ClientRequest clientRequest = new ClientRequest();
-                clientRequest.method = upperArg;
-                clientRequest.key = lineArray[1];
-                clientRequest.value = null;
-                requestJson = objectMapper.writeValueAsString(clientRequest);
-            } else {
-                return new Pair<String, Error>(null,
-                        new Error("Invalid operation"));
-            }
-        } catch (JsonProcessingException e) {
-            System.err.println(Utility.getDate() + "Cannot process request json: " + e.getMessage());
-        }
-
-        return new Pair<String, Error>(requestJson, null);
-    }
 
     public static String getDate() {
         DateFormat simple = new SimpleDateFormat("dd MMM yyyy HH:mm:ss:SSS Z");
@@ -83,45 +46,88 @@ public class Utility {
         return new Pair<Boolean, Integer>(true, port);
     }
 
-    public static String processRequest(String requestString, HashMap<String, String> map) {
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            ClientRequest request = mapper.readValue(requestString, ClientRequest.class);
+    public static Pair<String[], Error> getValidRequest(String rawRequest) {
+        String[] requestArray = rawRequest.split(" ");
+        if (requestArray.length != 2 && requestArray.length != 3) {
+            logger.debug("Invalid Operation: " +
+                    rawRequest);
+            return new Pair<String[], Error>(null, new Error("Usage: PUT <key> <value>\n" +
+                    "   Or: GET <key>\n" +
+                    "   Or: DELETE <key>"));
+        }
 
-            switch (methodMap.get(request.method)) {
-                case PUT:
-                    putByKeyValue(map, request.key, request.value);
-                    System.out.printf(Utility.getDate() + "Done putting %s with value %s\n",
-                            request.key, request.value);
-                    return "Success";
+        String upperRequest = requestArray[0].toUpperCase();
 
-                case GET:
-                    Pair valuePair = getByKey(map, request.key);
-                    if (valuePair.getValue() == null) {
-                        System.out.printf(Utility.getDate() + "Done getting key %s: %s\n",
-                                request.key, valuePair.getKey());
-                        return valuePair.getKey().toString();
-                    } else {
-                        System.err.printf(Utility.getDate() + "Error in getting key %s\n",
-                                request.key);
-                        return valuePair.getValue().toString();
-                    }
-
-                case DELETE:
-                    if (!deleteByKey(map, request.key)) {
-                        System.err.printf(Utility.getDate() + "Fail to delete key %s\n",
-                                request.key);
-                        return "No such key, failed to delete";
-                    } else {
-                        System.out.printf(Utility.getDate() + "Done deleting key %s \n",
-                                request.key);
-                        return "Success";
-                    }
+        if (upperRequest.equals("PUT")) {
+            if (requestArray.length == 2) {
+                logger.debug("Invalid arguments: " +
+                        rawRequest);
+                return new Pair<String[], Error>(null,
+                        new Error("Usage: PUT <key> <value>"));
             }
 
-        } catch (Exception e) {
-            System.err.printf(Utility.getDate() + "Cannot parse request %s: %s\n",
-                    requestString, e.getMessage());
+            return new Pair<String[], Error>(
+                    new String[]{upperRequest, requestArray[1], requestArray[2]},
+                    null);
+        } else if (upperRequest.equals("GET") || upperRequest.equals("DELETE")) {
+            if (requestArray.length == 3) {
+                logger.debug("Invalid arguments: " +
+                        rawRequest);
+                return new Pair<String[], Error>(null,
+                        new Error("Usage: GET <key> \n" +
+                                "   Or: DELETE <key>"));
+            }
+            return new Pair<String[], Error>(
+                    new String[]{upperRequest, requestArray[1]},
+                    null);
+        }
+
+        logger.debug("Invalid Operation: " +
+                rawRequest);
+        return new Pair<String[], Error>(null,
+                new Error("Usage: PUT <key> <value>\n" +
+                        "   Or: GET <key>\n" +
+                        "   Or: DELETE <key>"));
+    }
+
+
+    public static String processRequest(String requestString, HashMap<String, String> map) {
+
+        Pair<String[], Error> requestPair = getValidRequest(requestString);
+        if (requestPair.getValue() != null) {
+            return requestPair.getValue().getMessage();
+        }
+        String[] request = requestPair.getKey();
+
+        switch (methodMap.get(request[0])) {
+            case PUT:
+                putByKeyValue(map, request[1], request[2]);
+                logger.debug("Done putting " + request[1] +
+                        " with value " + request[2]);
+                return "Success";
+
+            case GET:
+                Pair valuePair = getByKey(map, request[1]);
+                if (valuePair.getValue() == null) {
+                    logger.debug("Done getting key " +
+                            request[1] + ": " + valuePair.getKey());
+                    return valuePair.getKey().toString();
+                } else {
+                    logger.debug("Failed to get key " +
+                            request[1]);
+                    return "No such key, failed to get";
+                }
+
+            case DELETE:
+                if (!deleteByKey(map, request[1])) {
+                    logger.debug("Fail to delete key " +
+                            request[1]);
+                    return "No such key, failed to delete";
+                } else {
+                    logger.debug("Done deleting key " +
+                            request[1]);
+                    return "Success";
+                }
         }
 
         return null;
@@ -155,7 +161,7 @@ public class Utility {
         try {
             return objectMapper.writeValueAsString(serverResponse);
         } catch (Exception e) {
-            System.err.println(Utility.getDate() + "Cannot process response json: " + e.getMessage());
+            logger.error("Cannot process response json: " + e.getMessage());
         }
         return null;
     }

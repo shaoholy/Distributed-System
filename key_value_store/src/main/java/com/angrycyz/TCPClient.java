@@ -2,11 +2,11 @@ package com.angrycyz;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -14,65 +14,79 @@ import java.util.Scanner;
 
 public class TCPClient {
 
-    public final int TIME_LIMIT = 20 * 1000;
+    private static final Logger logger = LogManager.getLogger("TCPClient");
+
+    public final int TIME_LIMIT = 5 * 1000;
 
     public void connectToServer(String address, int port) {
         Socket socket = null;
+        BufferedReader bufferedReader = null;
+        PrintWriter printWriter = null;
         try {
             socket = new Socket(address, port);
-            socket.setSoTimeout(TIME_LIMIT);
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
-
+            bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            printWriter = new PrintWriter(socket.getOutputStream(), true);
             Scanner scanner = new Scanner(System.in);
+            boolean timeout = false;
             /* keep scanning input from console */
             while (true) {
-                System.out.print(Utility.getDate() + "Please give an operation: ");
+                if (timeout) {
+                    logger.warn("Timed out");
+                    while (true) {
+                        try {
+                            socket = new Socket(address, port);
+                            bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                            printWriter = new PrintWriter(socket.getOutputStream(), true);
+                            logger.info("Successfully reconnected");
+                            break;
+                        } catch (SocketException e) {
+
+                        }
+                    }
+                }
+                logger.info("Please give an operation: ");
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
-                    Pair<String, Error> requestPair = Utility.createRequest(line);
-                    Error err;
-                    if ((err = requestPair.getValue()) != null) {
-                        System.err.println(err.getMessage());
-                        System.out.printf("Usage: PUT <key> <value>\n" +
-                                "   Or: GET <key>\n" +
-                                "   Or: DELETE <key>\n");
-                        continue;
-                    }
-                    printWriter.println(requestPair.getKey());
+                    printWriter = new PrintWriter(socket.getOutputStream(), true);
+                    printWriter.println(line);
+
                     String str;
-                    if ((str = bufferedReader.readLine()) != null) {
-                        /* if client receive close message from server,
-                         * client will exit
-                         */
-                        ObjectMapper objectMapper = new ObjectMapper();
-                        ServerResponse response = objectMapper.readValue(str, ServerResponse.class);
-                        if (response.closed) {
-                            System.err.println(Utility.getDate() + "Socket is closed, client exiting...");
+                    long start_time = System.currentTimeMillis();
+                    long end_time = start_time + TIME_LIMIT;
+
+                    while (System.currentTimeMillis() < end_time) {
+                        if ((str = bufferedReader.readLine()) != null) {
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            ServerResponse response = objectMapper.readValue(str, ServerResponse.class);
+                            logger.info(response.response);
+                            timeout = false;
                             break;
                         }
-                        System.out.println(response.response);
+                    }
+                    if (System.currentTimeMillis() >= end_time) {
+                        timeout = true;
                     }
 
                 }
             }
 
-            printWriter.close();
-            bufferedReader.close();
-
         } catch (SocketException e) {
-            System.err.println(Utility.getDate() + "Socket: " + e.getMessage());
-        } catch (SocketTimeoutException e) {
-            System.err.println(Utility.getDate() + "Timeout: " + e.getMessage());
+            logger.error("Socket: " + e.getMessage());
         } catch (IOException e) {
-            System.err.println(Utility.getDate() + "IO: " + e.getMessage());
+            logger.error("IO: " + e.getMessage());
         } finally {
+            try {
+            if (printWriter != null) {
+                printWriter.close();
+            }
+            if (bufferedReader != null) {
+                bufferedReader.close();
+            }
             if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    System.err.println("Cannot close socket: " + e.getMessage());
-                }
+                socket.close();
+            }
+            } catch (IOException e) {
+                logger.error("Cannot close socket: " + e.getMessage());
             }
         }
 
@@ -82,14 +96,22 @@ public class TCPClient {
         String address;
         Pair<Boolean, Integer> portPair;
 
+        LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
+        String propLocation = "src/main/resources/log4j2.xml";
+        File file = new File(propLocation);
+
+        context.setConfigLocation(file.toURI());
+
+        logger.info("Log properties file location: " + propLocation);
+
         if (args.length == 2 && (portPair = Utility.isPortValid(args[1])).getKey()) {
             address = args[0];
             port = portPair.getValue();
         } else {
-            System.out.println(Utility.getDate() + "Please give two arguments, " +
-                    "address and port, separate with space");
             Scanner scanner = new Scanner(System.in);
             while (true) {
+                logger.info("Please give two arguments, " +
+                        "address and port, separate with space");
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
                     String[] line_arg = line.trim().split("\\s+");

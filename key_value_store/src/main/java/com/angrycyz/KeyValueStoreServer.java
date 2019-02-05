@@ -2,9 +2,11 @@ package com.angrycyz;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -13,7 +15,7 @@ public class KeyValueStoreServer {
 
     public static final String TCP_COMM = "TCP";
     public static final String UDP_COMM = "UDP";
-    private static final Logger logger = LoggerFactory.getLogger(KeyValueStoreServer.class);
+    private static final Logger logger = LogManager.getLogger("KeyValueStoreServer");
 
     public ServerConfig parseConfig(String configPath) {
         ObjectMapper mapper = new ObjectMapper();
@@ -31,13 +33,21 @@ public class KeyValueStoreServer {
         int port;
         Pair<Boolean, Integer> portPair;
 
+        LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
+        String propLocation = "src/main/resources/log4j2.xml";
+        File file = new File(propLocation);
+
+        context.setConfigLocation(file.toURI());
+
+        logger.info("Log properties file location: " + propLocation);
+
         if (args.length == 1 && (portPair = Utility.isPortValid(args[0])).getKey()) {
             port = portPair.getValue();
         } else {
             Scanner scanner = new Scanner(System.in);
 
             while (true) {
-                System.out.println(Utility.getDate() + "Please give one valid port number");
+                logger.info("Please give one valid port number");
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
                     String[] line_arg = line.trim().split("\\s+");
@@ -50,23 +60,32 @@ public class KeyValueStoreServer {
 
         }
 
-        logger.info("Using the port %d\n", port);
         KeyValueStoreServer server = new KeyValueStoreServer();
         String configPath = "etc/comm_config.json";
-        System.out.printf(Utility.getDate() + "Parse config file from %s\n", configPath);
+        logger.info("Parse config file from " + configPath);
         ServerConfig serverConfig = server.parseConfig(configPath);
 
+        HashMap<String, String> preMap = new HashMap<String, String>(){{
+            put("A", "1");
+            put("B", "2");
+            put("C", "3");
+            put("D", "4");
+            put("E", "5");
+        }};
+
+        logger.debug("Pre-populated hashmap: " + preMap);
+
         if (serverConfig.comm.equals(TCP_COMM)) {
-            System.out.println(Utility.getDate() + "Starting TCP server");
+            logger.info("Starting TCP server");
             Server tcpServer = new TCPServer();
-            tcpServer.startServer(port);
+            tcpServer.startServer(preMap, port);
         } else if (serverConfig.comm.equals(UDP_COMM)) {
-            System.out.println(Utility.getDate() + "Starting UDP server");
+            logger.info("Starting UDP server");
             Server udpServer = new UDPServer();
-            udpServer.startServer(port);
+            udpServer.startServer(preMap, port);
         } else {
-            System.err.printf(Utility.getDate() + "%s is not valid communication protocol," +
-                    "Please check config file\n", serverConfig.comm);
+            logger.error(serverConfig.comm + " is not valid communication protocol," +
+                    "Please check config file");
             System.exit(1);
         }
     }

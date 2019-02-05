@@ -1,6 +1,7 @@
 package com.angrycyz;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,18 +10,18 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 public class TCPServer implements Server {
+    private static final Logger logger = LogManager.getLogger("TCPServer");
 
     private void closeTCPSocket(Socket s) {
         if (s != null && !s.isClosed()) {
             try {
                 s.close();
             } catch (Exception e) {
-                System.err.println(Utility.getDate() + "Cannot close socket: " + e.getMessage());
+                logger.error("Cannot close socket: " + e.getMessage());
             }
         }
     }
@@ -32,51 +33,27 @@ public class TCPServer implements Server {
             printWriter.println(Utility.createResponse(true, null));
             printWriter.close();
         } catch (Exception e) {
-            System.err.println(Utility.getDate() + "Cannot send close response to client: " + e.getMessage());
+            logger.error("Cannot send close response to client: " + e.getMessage());
         }
     }
 
     public static String formatTCPRequest(String requestString, Socket socket) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            ClientRequest request = objectMapper.readValue(requestString, ClientRequest.class);
-            if (socket != null && !socket.isClosed()) {
-                return String.format("Request from %s:%d: %s %s %s\n",
-                        socket.getInetAddress(), socket.getPort(),
-                        request.method, request.key, request.value);
-            }
-            return String.format("Request: %s %s %s\n",
-                    request.method, request.key, request.value);
-        } catch (Exception e) {
-            System.err.println(Utility.getDate() + "Cannot format request: " + e.getMessage());
+
+        if (socket != null && !socket.isClosed()) {
+            return String.format("Request from %s:%d: %s",
+                    socket.getInetAddress(), socket.getPort(),
+                    requestString);
         }
-        return null;
+        return String.format("Request: %s %s",
+                requestString);
     }
 
-    public void startServer(int port) {
-        HashMap<String, String> map = new HashMap<String, String>();
-        final List<Socket> globalSockets = new ArrayList<Socket>();
-
-        /* add a shutdown hook to send close message
-         * to client and do the cleanup
-         */
-        Runtime.getRuntime().addShutdownHook(new Thread(){
-            @Override
-            public void run() {
-                for (Socket s : globalSockets) {
-                    sendTCPCloseResponse(s);
-                    closeTCPSocket(s);
-                }
-                System.out.println(Utility.getDate() + "Keyboard Interrupt, Shutdown...");
-            }
-        });
-
+    public void startServer(HashMap<String, String> map, int port) {
         ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(port);
             while (true) {
                 Socket socket = serverSocket.accept();
-                globalSockets.add(socket);
                 // close server socket to make sure that other client throw exception
                 serverSocket.close();
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -84,7 +61,7 @@ public class TCPServer implements Server {
 
                 String inputString;
                 while ((inputString = bufferedReader.readLine()) != null) {
-                    System.out.printf(Utility.getDate() + formatTCPRequest(inputString, socket));
+                    logger.debug(formatTCPRequest(inputString, socket));
 
                     /* process request and get results
                      * results could be either the real result of hashmap operation
@@ -99,22 +76,21 @@ public class TCPServer implements Server {
                 printWriter.close();
                 bufferedReader.close();
                 closeTCPSocket(socket);
-                globalSockets.remove(globalSockets.size() - 1);
                 // open a new server socket
                 serverSocket = new ServerSocket(port);
             }
         } catch (SocketException e) {
-            System.err.println(Utility.getDate() + "Socket: " + e.getMessage());
+            logger.error("Socket: " + e.getMessage());
             System.exit(1);
         } catch (IOException e) {
-            System.err.println(Utility.getDate() + "IO: " + e.getMessage());
+            logger.error("IO: " + e.getMessage());
             System.exit(1);
         } finally {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 try {
                     serverSocket.close();
                 } catch (Exception e) {
-                    System.err.println(Utility.getDate() + "Cannot close serverSocket: " + e.getMessage());
+                    logger.error("Cannot close serverSocket: " + e.getMessage());
                     System.exit(1);
                 }
             }
