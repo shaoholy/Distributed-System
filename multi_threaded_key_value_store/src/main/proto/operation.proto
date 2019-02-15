@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.angrycyz.grpc";
+
+service KeyValueStore {
+    rpc MapGet(KeyRequest) returns (OperationReply) {}
+    rpc MapPut(KeyValueRequest) returns (OperationReply) {}
+    rpc MapDelete(KeyRequest) returns (OperationReply) {}
+}
+
+message KeyRequest {
+    string key = 1;
+}
+
+message KeyValueRequest {
+    string key = 1;
+    string value = 2;
+}
+
+message OperationReply {
+    string reply = 1;
+}
