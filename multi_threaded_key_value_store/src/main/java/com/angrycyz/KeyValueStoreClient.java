@@ -13,6 +13,8 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class KeyValueStoreClient {
     private static final Logger logger = LogManager.getLogger("KeyValueStoreClient");
@@ -45,29 +47,58 @@ public class KeyValueStoreClient {
                     OperationReply reply;
 
                     if (pair.getKey()[0].equals("PUT")) {
-                        KeyValueRequest request = KeyValueRequest
-                                .newBuilder()
-                                .setKey(pair.getKey()[1])
-                                .setValue(pair.getKey()[2])
-                                .build();
-                        reply = blockingStub.mapPut(request);
+                        reply = sendPutOperation(pair.getKey()[1], pair.getKey()[2]);
                     } else if (pair.getKey()[0].equals("GET")) {
-                        KeyRequest request = KeyRequest
-                                .newBuilder()
-                                .setKey(pair.getKey()[1])
-                                .build();
-                        reply = blockingStub.mapGet(request);
+                        reply = sendGetOperation(pair.getKey()[1]);
                     } else {
-                        KeyRequest request = KeyRequest
-                                .newBuilder()
-                                .setKey(pair.getKey()[1])
-                                .build();
-                        reply = blockingStub.mapDelete(request);
+                        reply = sendDeleteOperation(pair.getKey()[1]);
                     }
-                    logger.info("Server Response: " + reply.getReply());
+                    if (reply != null) {
+                        logger.info("Server Response: " + reply.getReply());
+                    }
                 }
             }
         }
+    }
+
+    public OperationReply sendGetOperation(String key) {
+        KeyRequest request = KeyRequest
+                .newBuilder()
+                .setKey(key)
+                .build();
+        try {
+            return blockingStub.mapGet(request);
+        } catch (Exception e) {
+            logger.error("Cannot GET from server: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public OperationReply sendDeleteOperation(String key) {
+        KeyRequest request = KeyRequest
+                .newBuilder()
+                .setKey(key)
+                .build();
+        try {
+            return blockingStub.mapDelete(request);
+        } catch (Exception e) {
+            logger.error("Cannot GET from server: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public OperationReply sendPutOperation(String key, String value) {
+        KeyValueRequest request = KeyValueRequest
+                .newBuilder()
+                .setKey(key)
+                .setValue(value)
+                .build();
+        try {
+            return blockingStub.mapPut(request);
+        } catch (Exception e) {
+            logger.error("Cannot GET from server: " + e.getMessage());
+        }
+        return null;
     }
 
     private Pair<String[], Error> processRequest(String request) {
@@ -140,5 +171,6 @@ public class KeyValueStoreClient {
 
         KeyValueStoreClient client = new KeyValueStoreClient(address, port);
         client.sendOperation();
+
     }
 }
