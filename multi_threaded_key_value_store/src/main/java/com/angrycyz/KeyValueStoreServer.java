@@ -16,8 +16,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class KeyValueStoreServer {
 
@@ -33,6 +31,7 @@ public class KeyValueStoreServer {
             OperationReply reply;
 
             String key = request.getKey();
+            logger.info("Get " + key);
             if (map.containsKey(key)) {
                 reply = OperationReply.newBuilder().setReply(map.get(key)).build();
             } else {
@@ -46,7 +45,7 @@ public class KeyValueStoreServer {
         public void mapPut(KeyValueRequest request, StreamObserver<OperationReply> responseObserver) {
             String key = request.getKey();
             String value = request.getValue();
-
+            logger.info("Put " + key + " " + value);
             map.put(key, value);
             OperationReply reply = OperationReply.newBuilder().setReply("Success").build();
             responseObserver.onNext(reply);
@@ -58,6 +57,7 @@ public class KeyValueStoreServer {
             OperationReply reply;
 
             String key = request.getKey();
+            logger.info("Delete " + key);
             if (map.containsKey(key)) {
                 reply = OperationReply.newBuilder().setReply(map.remove(key)).build();
             } else {
@@ -85,11 +85,9 @@ public class KeyValueStoreServer {
             logger.info("Started server, listening on " + Integer.toString(port));
         } catch (IOException e) {
             logger.error("IO: " + e.getMessage());
+        } catch (Exception e) {
+            logger.error(e.getMessage());
         }
-//        ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
-
-//        ServerTask serverTask = new ServerTask();
-//        executorService.execute(serverTask);
 
     }
 
@@ -141,6 +139,13 @@ public class KeyValueStoreServer {
             }
 
         }
+        /* pre populate map with 15 key-value pairs */
+        int ascii_a = (int)'a';
+
+        for (int i = 0; i < 15; i++) {
+            map.put(Character.toString((char)(ascii_a + i)), Integer.toString(i));
+        }
+        logger.info(map);
 
         KeyValueStoreServer server = new KeyValueStoreServer();
 
