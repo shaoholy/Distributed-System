@@ -13,8 +13,6 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
 import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class KeyValueStoreClient {
     private static final Logger logger = LogManager.getLogger("KeyValueStoreClient");
