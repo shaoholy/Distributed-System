@@ -55,7 +55,7 @@ now you can use
     get <key>
     delete <key>
     
-to make operations on the hashmap, the put/get/delete is not case sensitive.
+to make operations on the hashmap, the put/get/delete is not case sensitive. Note the hashmap is pre-populated with 15 key-value pairs and will give a log on the elements in it to make sure you can do operations on it without getting messages like "Key does not exist".
     
 ### Utility
 
