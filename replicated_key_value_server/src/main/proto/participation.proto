@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.angrycyz.grpc";
+
+service Participation {
+    rpc canCommit(VoteRequest) returns (VoteReply) {}
+    rpc doCommit(CommitRequest) returns (AckMessage) {}
+    rpc doAbort(RollbackRequest) returns (AckMessage) {}
+}
+
+message VoteRequest {
+    string operation = 1;
+    string key = 2;
+    string value = 3;
+    string transaction_id = 4;
+}
+
+message CommitRequest {
+    string operation = 1;
+    string key = 2;
+    string value = 3;
+    string transaction_id = 4;
+}
+
+message RollbackRequest {
+    string transaction_id = 3;
+}
+
+message AckMessage {
+    string msg = 1;
+}
+
+message VoteReply {
+    bool vote = 1;
+}
+
+service KeyValueStore {
+    rpc MapGet(KeyRequest) returns (OperationReply) {}
+    rpc MapPut(KeyValueRequest) returns (OperationReply) {}
+    rpc MapDelete(KeyRequest) returns (OperationReply) {}
+}
+
+message KeyRequest {
+    string key = 1;
+}
+
+message KeyValueRequest {
+    string key = 1;
+    string value = 2;
+}
+
+message OperationReply {
+    string reply = 1;
+}
