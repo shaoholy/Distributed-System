@@ -13,11 +13,13 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class Client {
     private static final Logger logger = LogManager.getLogger("Client");
     private final ManagedChannel channel;
     private final KeyValueStoreGrpc.KeyValueStoreBlockingStub blockingStub;
+    private final int STUB_TIMEOUT = 3;
 
     public Client(String address, int port) {
         this(ManagedChannelBuilder.forAddress(address, port)
@@ -65,7 +67,7 @@ public class Client {
                 .setKey(key)
                 .build();
         try {
-            return blockingStub.mapGet(request);
+            return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapGet(request);
         } catch (Exception e) {
             logger.error("Cannot GET from server: " + e.getMessage());
         }
@@ -78,7 +80,7 @@ public class Client {
                 .setKey(key)
                 .build();
         try {
-            return blockingStub.mapDelete(request);
+            return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapDelete(request);
         } catch (Exception e) {
             logger.error("Cannot GET from server: " + e.getMessage());
         }
@@ -92,7 +94,7 @@ public class Client {
                 .setValue(value)
                 .build();
         try {
-            return blockingStub.mapPut(request);
+            return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapPut(request);
         } catch (Exception e) {
             logger.error("Cannot GET from server: " + e.getMessage());
         }

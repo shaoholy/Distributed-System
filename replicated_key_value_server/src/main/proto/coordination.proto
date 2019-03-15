@@ -6,15 +6,14 @@ option java_package = "com.angrycyz.grpc";
 import "participation.proto";
 
 service Coordination {
-    rpc haveCommited(ConfirmRequest) returns (ConfirmReply) {}
+    rpc haveCommitted(ConfirmRequest) returns (ConfirmReply) {}
     rpc getDecision(ConfirmRequest) returns (DecisionReply) {}
-    rpc openTransaction(TransactionRequest) returns (TransactionReply) {}
 }
 
 message ConfirmRequest {
     string transaction_id = 1;
     string participant_address = 2;
-    string participant_port = 3;
+    int32 participant_port = 3;
 }
 
 message ConfirmReply {
@@ -23,14 +22,4 @@ message ConfirmReply {
 
 message DecisionReply {
     bool decision = 1;
-}
-
-message TransactionRequest {
-    string operation = 1;
-    string key = 2;
-    string value = 3;
-}
-
-message TransactionReply {
-    string msg = 1;
 }

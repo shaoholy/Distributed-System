@@ -17,6 +17,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import static io.grpc.ConnectivityState.SHUTDOWN;
+
 public class Coordinator{
     private static final Logger logger = LogManager.getLogger("Coordinator");
     private List<Pair<String, Integer>> participantList = new ArrayList<Pair<String, Integer>>();
@@ -34,15 +36,25 @@ public class Coordinator{
     class CoordinationImpl extends CoordinationGrpc.CoordinationImplBase {
 
         @Override
-        public void haveCommited(ConfirmRequest cRequest, StreamObserver<ConfirmReply> responseObserver) {
+        public void haveCommitted(ConfirmRequest cRequest, StreamObserver<ConfirmReply> responseObserver) {
+            ConfirmReply confirmReply;
+
+            if (transactionMap.containsKey(cRequest.getTransactionId())) {
+                confirmReply = ConfirmReply.newBuilder()
+                        .setCommitted(true)
+                        .build();
+            } else {
+                confirmReply = ConfirmReply.newBuilder()
+                        .setCommitted(false)
+                        .build();
+            }
+
+            responseObserver.onNext(confirmReply);
+            responseObserver.onCompleted();
         }
 
         @Override
         public void getDecision(ConfirmRequest cRequest, StreamObserver<DecisionReply> responseObserver) {
-        }
-
-        @Override
-        public void openTransaction(TransactionRequest tRequest, StreamObserver<TransactionReply> responseObserver) {
         }
 
 
@@ -89,25 +101,28 @@ public class Coordinator{
 
             /* add transaction to transaction map */
             Transaction transaction = new Transaction(tId, key, value, Coordinator.this.ip, Coordinator.this.port);
-            transactionMap.put(tId, transaction);
 
             /* sends a commit message to all participants */
             boolean decision = queryToCommit("PUT", key, value, tId);
 
             if (decision) {
                 /* all participants vote yes */
+                map.put(key, value);
+                kvReply = OperationReply.newBuilder()
+                        .setReply("Success")
+                        .build();
+
+                transactionMap.put(tId, transaction);
+
                 int ack_count = commit("PUT", key, value, tId);
 
                 /* all ack received, complete transaction */
                 if (ack_count == participantList.size()) {
-                    map.put(key, value);
-                    kvReply = OperationReply.newBuilder()
-                            .setReply("Success")
-                            .build();
-
-                    responseObserver.onNext(kvReply);
-                    responseObserver.onCompleted();
+                    logger.info("All ack received");
                 }
+
+                responseObserver.onNext(kvReply);
+                responseObserver.onCompleted();
 
             } else {
                 /* any of the participants vote no */
@@ -135,30 +150,34 @@ public class Coordinator{
 
             /* add transaction to transaction map */
             Transaction transaction = new Transaction(tId, key, value, Coordinator.this.ip, Coordinator.this.port);
-            transactionMap.put(tId, transaction);
 
             /* sends a commit message to all participants */
             boolean decision = queryToCommit("DELETE", key, value, tId);
 
             if (decision) {
                 /* all participants vote yes */
+                if (map.containsKey(key)) {
+                    kvReply = OperationReply.newBuilder()
+                            .setReply(map.remove(key))
+                            .build();
+                } else {
+                    kvReply = OperationReply.newBuilder()
+                            .setReply("Key does not exist")
+                            .build();
+                }
+
+                transactionMap.put(tId, transaction);
+
+                /* participant commit */
                 int ack_count = commit("DELETE", key, value, tId);
 
-                /* all ack received, complete transaction */
+                /* all ack received */
                 if (ack_count == participantList.size()) {
-                    if (map.containsKey(key)) {
-                        kvReply = OperationReply.newBuilder()
-                                .setReply(map.remove(key))
-                                .build();
-                    } else {
-                        kvReply = OperationReply.newBuilder()
-                                .setReply("Key does not exist")
-                                .build();
-                    }
-
-                    responseObserver.onNext(kvReply);
-                    responseObserver.onCompleted();
+                    logger.info("All ack received");
                 }
+
+                responseObserver.onNext(kvReply);
+                responseObserver.onCompleted();
 
             } else {
                 /* any of the participants vote no */
@@ -192,8 +211,9 @@ public class Coordinator{
             }
 
             boolean decision = true;
-            for (ParticipationGrpc.ParticipationBlockingStub blockingStub: blockingStubLists) {
+            for (int i = 0; i < blockingStubLists.size(); i++) {
                 try {
+                    ParticipationGrpc.ParticipationBlockingStub blockingStub = blockingStubLists.get(i);
                     VoteReply voteReply = blockingStub
                             .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
                             .canCommit(voteRequest);
@@ -203,6 +223,10 @@ public class Coordinator{
                 } catch (Exception e) {
                     logger.error("Erroring in receiving vote: ", e.getMessage());
                     decision = false;
+                    logger.warn("channel shutdown");
+                    participantList.remove(i);
+                    channelList.remove(i);
+                    blockingStubLists.remove(i);
                 }
             }
             return decision;
@@ -244,7 +268,7 @@ public class Coordinator{
             RollbackRequest rollbackRequest = RollbackRequest.newBuilder()
                     .setTransactionId(tId)
                     .build();
-                /* sends a rollback message to all participants */
+            /* sends a rollback message to all participants */
             for (ParticipationGrpc.ParticipationBlockingStub blockingStub: blockingStubLists) {
                 try {
                     AckMessage ackMessage = blockingStub

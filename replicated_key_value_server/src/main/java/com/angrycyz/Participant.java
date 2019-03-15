@@ -1,7 +1,6 @@
 package com.angrycyz;
 
 import com.angrycyz.grpc.*;
-import com.google.longrunning.Operation;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -32,6 +31,7 @@ public class Participant{
     private String ip;
     private ManagedChannel channel;
     private KeyValueStoreGrpc.KeyValueStoreBlockingStub blockingStub;
+    private CoordinationGrpc.CoordinationBlockingStub cBlockingStub;
     private Pair<String, Integer> coordinatorConfig;
 
     private class UndoLog {
@@ -167,9 +167,29 @@ public class Participant{
 
         @Override
         public void doCommit(CommitRequest commitRequest, StreamObserver<AckMessage> responseObserver) {
-            AckMessage ackMessage = AckMessage.newBuilder()
-                    .setMsg("Committed")
+            /* confirm transaction is committed */
+            ConfirmRequest confirmRequest = ConfirmRequest.newBuilder()
+                    .setTransactionId(commitRequest.getTransactionId())
+                    .setParticipantAddress(ip)
+                    .setParticipantPort(port)
                     .build();
+
+            ConfirmReply confirmReply = cBlockingStub
+                    .withDeadlineAfter(3, TimeUnit.SECONDS)
+                    .haveCommitted(confirmRequest);
+
+            AckMessage ackMessage;
+            if (confirmReply.getCommitted()) {
+                ackMessage = AckMessage.newBuilder()
+                        .setMsg("Committed")
+                        .build();
+            } else {
+                ackMessage = AckMessage.newBuilder()
+                        .setMsg("Require commit of coordinator")
+                        .build();
+                logger.error("Coordinator did not commit");
+            }
+
             responseObserver.onNext(ackMessage);
             responseObserver.onCompleted();
         }
@@ -187,11 +207,10 @@ public class Participant{
                  */
                 String key = undo.getPrevKey();
                 if (map.containsKey(key)) {
-                    String value = map.get(key);
                     /* value = null means before the commit,
                      * there's no such key
                      */
-                    if (value == null) {
+                    if (undo.getPrevVal() == null) {
                         map.remove(key);
                     } else {
                         map.put(key, undo.getPrevVal());
@@ -235,22 +254,30 @@ public class Participant{
 
         @Override
         public void mapPut(KeyValueRequest kvRequest, StreamObserver<OperationReply> responseObserver) {
-            OperationReply kvReply = blockingStub
-                    .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
-                    .mapPut(kvRequest);
+            try {
+                OperationReply kvReply = blockingStub
+                        .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
+                        .mapPut(kvRequest);
 
-            responseObserver.onNext(kvReply);
-            responseObserver.onCompleted();
+                responseObserver.onNext(kvReply);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error("Cannot get from coordinator: " + e.getMessage());
+            }
         }
 
         @Override
         public void mapDelete(KeyRequest kvRequest, StreamObserver<OperationReply> responseObserver) {
-            OperationReply kvReply = blockingStub
-                    .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
-                    .mapDelete(kvRequest);
+            try {
+                OperationReply kvReply = blockingStub
+                        .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
+                        .mapDelete(kvRequest);
 
-            responseObserver.onNext(kvReply);
-            responseObserver.onCompleted();
+                responseObserver.onNext(kvReply);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+            logger.error("Cannot get from coordinator: " + e.getMessage());
+            }
         }
     }
 
@@ -269,6 +296,7 @@ public class Participant{
     private void buildChannels(ManagedChannel channel) {
         this.channel = channel;
         this.blockingStub = KeyValueStoreGrpc.newBlockingStub(channel);
+        this.cBlockingStub = CoordinationGrpc.newBlockingStub(channel);
     }
 
     private void stop() {
