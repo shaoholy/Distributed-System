@@ -56,4 +56,14 @@ public class Transaction {
     private String val;
     private String address;
     private int port;
+
+    public boolean isDecision() {
+        return decision;
+    }
+
+    public void setDecision(boolean decision) {
+        this.decision = decision;
+    }
+
+    private boolean decision;
 }
