@@ -170,6 +170,22 @@ public class Client {
         }
 
         Client client = new Client(address, port);
+
+        /* hardcode to pre populate data */
+        OperationReply reply;
+        int ascii_a = (int)'A';
+
+        try {
+            for (int i = 0; i < 5; i++) {
+                reply = client.sendPutOperation(
+                        Character.toString((char) (ascii_a + i)),
+                        Integer.toString(i));
+                logger.info("Prepopulate operation server response: " + reply.getReply());
+            }
+        } catch (Exception e) {
+            logger.error("Cannot prepopulate with data: " + e.getMessage());
+            System.exit(1);
+        }
         client.sendOperation();
 
     }
