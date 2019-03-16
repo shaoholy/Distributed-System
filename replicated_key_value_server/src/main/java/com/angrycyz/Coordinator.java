@@ -17,8 +17,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import static io.grpc.ConnectivityState.SHUTDOWN;
-
 public class Coordinator{
     private static final Logger logger = LogManager.getLogger("Coordinator");
     private List<Pair<String, Integer>> participantList = new ArrayList<Pair<String, Integer>>();
@@ -55,6 +53,23 @@ public class Coordinator{
 
         @Override
         public void getDecision(ConfirmRequest cRequest, StreamObserver<DecisionReply> responseObserver) {
+            String tId = cRequest.getTransactionId();
+
+            DecisionReply decisionReply;
+
+            if (transactionMap.containsKey(tId)) {
+                boolean decision = transactionMap.get(tId).isDecision();
+                decisionReply = DecisionReply.newBuilder()
+                        .setDecision(decision)
+                        .build();
+            } else {
+                decisionReply = DecisionReply.newBuilder()
+                        .setDecision(false)
+                        .build();
+            }
+            responseObserver.onNext(decisionReply);
+            responseObserver.onCompleted();
+
         }
 
 
@@ -112,6 +127,7 @@ public class Coordinator{
                         .setReply("Success")
                         .build();
 
+                transaction.setDecision(true);
                 transactionMap.put(tId, transaction);
 
                 int ack_count = commit("PUT", key, value, tId);
@@ -126,6 +142,9 @@ public class Coordinator{
 
             } else {
                 /* any of the participants vote no */
+                transaction.setDecision(false);
+                transactionMap.put(tId, transaction);
+
                 rollback(tId);
 
                 /* send a failure message */
@@ -166,6 +185,7 @@ public class Coordinator{
                             .build();
                 }
 
+                transaction.setDecision(true);
                 transactionMap.put(tId, transaction);
 
                 /* participant commit */
@@ -181,6 +201,9 @@ public class Coordinator{
 
             } else {
                 /* any of the participants vote no */
+                transaction.setDecision(false);
+                transactionMap.put(tId, transaction);
+
                 rollback(tId);
 
                 /* send a failure message */
