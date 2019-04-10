@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.angrycyz.grpc";
+
+import "paxosMsg.proto";
+
+service AcceptLearnPb {
+    rpc prepare (PaxosMsg) returns (PaxosMsg) {}
+    rpc accept (PaxosMsg) returns (PaxosMsg) {}
+    rpc getState(StateRequest) returns (StateReply) {}
+    rpc learnProposal(PaxosMsg) returns (LearnReply) {}
+}
+
+message StateRequest {
+    string msg = 1;
+}
+
+message StateReply {
+    string msg = 1;
+}
+
+message LearnReply {
+    string msg = 1;
+}
