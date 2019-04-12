@@ -1,0 +1,2 @@
+![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/diagram.png?raw=true)
+![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/proposerToAcceptor.png?raw=true)
