@@ -39,7 +39,7 @@ For each socket the server created, it has a 14 seconds timeout, if you didn't s
 Also, I add a shutdown hook, when the server got interrupt and will shutdown, it can firstly send close message to all clients and close all sockets. This is implemented by starting another thread to keep waiting for interrupt.
 
 ------------------------------------------
-## TCPClientWithExit
+## TCPClientWithoutExit
 ------------------------------------------
 
 Run the class file with two arguments indicating the address and port or without argument(the program will use localhost and default port same as server default port).
@@ -49,13 +49,13 @@ If the client does not connect to the server within 14 seconds, the socket will 
 
 Example:
 
-    >> javac TCPClientWithExit.java
-    >> java TCPClientWithExit 127.0.0.1 1254
-    or >> java TCPClientWithExit
+    >> javac TCPClientWithoutExit.java
+    >> java TCPClientWithoutExit 127.0.0.1 1254
+    or >> java TCPClientWithoutExit
     
 if you are giving only one argument or more than two argument, the program will ask you to provide two arguments:
 
-    >> java TCPClientWithExit 127.0.0.1
+    >> java TCPClientWithoutExit 127.0.0.1
     Please give two arguments
     >>127.0.0.1 1254
 

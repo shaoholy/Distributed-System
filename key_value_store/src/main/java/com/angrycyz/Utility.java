@@ -1,6 +1,5 @@
 package com.angrycyz;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -33,6 +32,7 @@ public class Utility {
         return simple.format(result) + " ";
     }
 
+    /* check if port is valid integer and between 0 - 2^16 */
     public static Pair<Boolean, Integer> isPortValid(String portString) {
         int port;
         try {
@@ -47,17 +47,20 @@ public class Utility {
     }
 
     public static Pair<String[], Error> getValidRequest(String rawRequest) {
+        /* split the request by space*/
         String[] requestArray = rawRequest.split(" ");
         if (requestArray.length != 2 && requestArray.length != 3) {
             logger.debug("Invalid Operation: " +
                     rawRequest);
-            return new Pair<String[], Error>(null, new Error("Usage: PUT <key> <value>\n" +
-                    "   Or: GET <key>\n" +
+            return new Pair<String[], Error>(null, new Error("Usage: PUT <key> <value>" +
+                    "   Or: GET <key>" +
                     "   Or: DELETE <key>"));
         }
 
+        /* convert to uppercase to make sure all case of operations work */
         String upperRequest = requestArray[0].toUpperCase();
 
+        /* check if the operation is one of following */
         if (upperRequest.equals("PUT")) {
             if (requestArray.length == 2) {
                 logger.debug("Invalid arguments: " +
@@ -74,7 +77,7 @@ public class Utility {
                 logger.debug("Invalid arguments: " +
                         rawRequest);
                 return new Pair<String[], Error>(null,
-                        new Error("Usage: GET <key> \n" +
+                        new Error("Usage: GET <key>" +
                                 "   Or: DELETE <key>"));
             }
             return new Pair<String[], Error>(
@@ -85,8 +88,8 @@ public class Utility {
         logger.debug("Invalid Operation: " +
                 rawRequest);
         return new Pair<String[], Error>(null,
-                new Error("Usage: PUT <key> <value>\n" +
-                        "   Or: GET <key>\n" +
+                new Error("Usage: PUT <key> <value>" +
+                        "   Or: GET <key>" +
                         "   Or: DELETE <key>"));
     }
 
@@ -99,6 +102,7 @@ public class Utility {
         }
         String[] request = requestPair.getKey();
 
+        /* get either failure message or result from hashmap */
         switch (methodMap.get(request[0])) {
             case PUT:
                 putByKeyValue(map, request[1], request[2]);
@@ -151,19 +155,6 @@ public class Utility {
         }
         map.remove(key);
         return true;
-    }
-
-    public static String createResponse(boolean closed, String output) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        ServerResponse serverResponse = new ServerResponse();
-        serverResponse.closed = closed;
-        serverResponse.response = output;
-        try {
-            return objectMapper.writeValueAsString(serverResponse);
-        } catch (Exception e) {
-            logger.error("Cannot process response json: " + e.getMessage());
-        }
-        return null;
     }
 
 }

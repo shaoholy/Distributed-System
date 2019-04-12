@@ -1,6 +1,5 @@
 package com.angrycyz;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,12 +23,15 @@ public class TCPClient {
         PrintWriter printWriter = null;
         try {
             socket = new Socket(address, port);
+            socket.setSoTimeout(TIME_LIMIT);
             bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             printWriter = new PrintWriter(socket.getOutputStream(), true);
             Scanner scanner = new Scanner(System.in);
             boolean timeout = false;
+
             /* keep scanning input from console */
             while (true) {
+                /* set a limit and keep reconnect to server until success*/
                 if (timeout) {
                     logger.warn("Timed out");
                     while (true) {
@@ -40,31 +42,35 @@ public class TCPClient {
                             logger.info("Successfully reconnected");
                             break;
                         } catch (SocketException e) {
-
+                            /* if not connected, retrying */
                         }
                     }
                 }
                 logger.info("Please give an operation: ");
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
-                    printWriter = new PrintWriter(socket.getOutputStream(), true);
-                    printWriter.println(line);
+                    /* send to server */
 
+                    printWriter.println(line);
                     String str;
+
                     long start_time = System.currentTimeMillis();
                     long end_time = start_time + TIME_LIMIT;
 
-                    while (System.currentTimeMillis() < end_time) {
-                        if ((str = bufferedReader.readLine()) != null) {
-                            ObjectMapper objectMapper = new ObjectMapper();
-                            ServerResponse response = objectMapper.readValue(str, ServerResponse.class);
-                            logger.info(response.response);
-                            timeout = false;
-                            break;
+                    try {
+                        while (System.currentTimeMillis() < end_time) {
+                            if ((str = bufferedReader.readLine()) != null) {
+                                logger.info(str);
+                                timeout = false;
+                                break;
+                            }
                         }
-                    }
-                    if (System.currentTimeMillis() >= end_time) {
-                        timeout = true;
+                        if (System.currentTimeMillis() >= end_time) {
+                            timeout = true;
+                        }
+                    } catch (SocketTimeoutException e) {
+                        logger.error("Timedout: " + e.getMessage());
+                        timeout = false;
                     }
 
                 }
@@ -96,6 +102,7 @@ public class TCPClient {
         String address;
         Pair<Boolean, Integer> portPair;
 
+        /* set log configuration file path */
         LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
         String propLocation = "src/main/resources/log4j2.xml";
         File file = new File(propLocation);
@@ -104,6 +111,7 @@ public class TCPClient {
 
         logger.info("Log properties file location: " + propLocation);
 
+        /* ask user for address and port */
         if (args.length == 2 && (portPair = Utility.isPortValid(args[1])).getKey()) {
             address = args[0];
             port = portPair.getValue();

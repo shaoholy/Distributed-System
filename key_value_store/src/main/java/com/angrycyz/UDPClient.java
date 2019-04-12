@@ -1,6 +1,5 @@
 package com.angrycyz;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.util.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,20 +34,17 @@ public class UDPClient {
 
                     buffer = new byte[1000];
                     DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+                    /* if timeout, we ignore the following steps and
+                     * continue asking user for new operations
+                     */
                     try {
                         aSocket.receive(reply);
                     } catch (SocketTimeoutException e) {
                         logger.warn("Timeout: " + e.getMessage());
                         continue;
                     }
-                    String replyStr = new String(reply.getData()).trim();
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    ServerResponse response = objectMapper.readValue(replyStr, ServerResponse.class);
-                    if (response.closed) {
-                        logger.error("Socket is closed, client exiting...");
-                        break;
-                    }
-                    logger.info("Reply: " + response.response);
+                    String response = new String(reply.getData()).trim();
+                    logger.info("Reply: " + response);
                 }
             }
         } catch (SocketException e) {
@@ -67,6 +63,7 @@ public class UDPClient {
         String address;
         Pair<Boolean, Integer> portPair;
 
+        /* set log configuration file path */
         LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
         String propLocation = "src/main/resources/log4j2.xml";
         File file = new File(propLocation);
@@ -75,6 +72,7 @@ public class UDPClient {
 
         logger.info("Log properties file location: " + propLocation);
 
+        /* ask user for address and port */
         if (args.length == 2 && (portPair = Utility.isPortValid(args[1])).getKey()) {
             address = args[0];
             port = portPair.getValue();

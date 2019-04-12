@@ -79,5 +79,15 @@ connect to one participant:
     mvn exec:java -Dexec.mainClass="com.angrycyz.Client" -Dexec.args="localhost 12112"
     
 
+### Transaction
 
+Transaction contains transaction id, key, value and decision. transaction id is represented by random UUID to make sure it's unique. If particiant asks for decision of some transaction, it can get the decision with given transaction id.
+
+### Utility
+
+This class contains methods and fields which are used by different classes.
+
+### SercerConfig
+
+server_config.json will be parsed and stored in this class.
 

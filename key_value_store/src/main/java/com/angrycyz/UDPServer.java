@@ -8,7 +8,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.HashMap;
-import java.util.Map;
 
 public class UDPServer implements Server{
 
@@ -44,14 +43,15 @@ public class UDPServer implements Server{
                 buffer = new byte[1000];
                 DatagramPacket request = new DatagramPacket(buffer, buffer.length);
                 aSocket.receive(request);
+                /* print the formatted request with address and port */
                 logger.debug(formatUDPRequest(request));
-                String output = Utility.processRequest(new String(request.getData()).trim(), map);
-                String response = Utility.createResponse(false, output);
+                String response = Utility.processRequest(new String(request.getData()).trim(), map);
                 byte[] responseByt = response.getBytes();
                 DatagramPacket reply = new DatagramPacket(responseByt,
                         response.length(), request.getAddress(),
                         request.getPort());
                 aSocket.send(reply);
+                logger.debug(map);
             }
         } catch (SocketException e) {
             logger.error("Socket: " + e.getMessage());

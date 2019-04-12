@@ -17,13 +17,14 @@ public class KeyValueStoreServer {
     public static final String UDP_COMM = "UDP";
     private static final Logger logger = LogManager.getLogger("KeyValueStoreServer");
 
+    /* parse config file to get protocol name */
     public ServerConfig parseConfig(String configPath) {
         ObjectMapper mapper = new ObjectMapper();
         try {
             String configStr = new String(Files.readAllBytes(Paths.get(configPath)));
             return mapper.readValue(configStr, ServerConfig.class);
         } catch (Exception e) {
-            System.err.printf(Utility.getDate() + "Cannot parse config file %s %s\n",
+            logger.error("Cannot parse config file %s %s\n",
                     configPath, e.getMessage());
         }
         return null;
@@ -33,6 +34,7 @@ public class KeyValueStoreServer {
         int port;
         Pair<Boolean, Integer> portPair;
 
+        /* set log configuration file location */
         LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
         String propLocation = "src/main/resources/log4j2.xml";
         File file = new File(propLocation);
@@ -41,6 +43,7 @@ public class KeyValueStoreServer {
 
         logger.info("Log properties file location: " + propLocation);
 
+        /* get valid port number */
         if (args.length == 1 && (portPair = Utility.isPortValid(args[0])).getKey()) {
             port = portPair.getValue();
         } else {
@@ -61,17 +64,20 @@ public class KeyValueStoreServer {
         }
 
         KeyValueStoreServer server = new KeyValueStoreServer();
+
+        /* read the communication protocol from config file */
         String configPath = "etc/comm_config.json";
         logger.info("Parse config file from " + configPath);
         ServerConfig serverConfig = server.parseConfig(configPath);
 
-        HashMap<String, String> preMap = new HashMap<String, String>(){{
-            put("A", "1");
-            put("B", "2");
-            put("C", "3");
-            put("D", "4");
-            put("E", "5");
-        }};
+        /* pre-populate some key-value pair to the map */
+        HashMap<String, String> preMap = new HashMap<String, String>();
+
+        int asciiA = (int)'A';
+
+        for (int i = 0; i < 15; i++) {
+            preMap.put(Character.toString((char)(asciiA + i)), Integer.toString(i));
+        }
 
         logger.debug("Pre-populated hashmap: " + preMap);
 
