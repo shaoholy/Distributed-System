@@ -25,7 +25,13 @@ The learner then respond to the coordinator so that the coordinator sends the re
 
 **What happens if any of the server crashes?**
 
-When all servers are up and running, every final proposal made by one proposer will be broadcast to all servers, so as long as the servers never go down, they should always have the same value. But what if any server crashes? The solution is to add one learner API, when the server crashes and restarts, it will call the learner API to get the most recent state and update the map so that to keep the same data as in other servers.
+When all servers are up and running, every final proposal made by one proposer will be broadcast to all servers, so as long as the servers never go down, they should always have the same value. But what if any server crashes? The solution is to add one learner API, when the server crashes and restarts, it will call the learner API to get the most recent state and update the map so that to keep the same data as in other servers. As the server goes down, the node number decreases, and the program can still work as long as the server number is larger or equal to 3(to get the majority), when the server restarted, it still can work as a member.
+
+
+**How does the proposer know if a server is up or down?**
+
+In every phase, the proposer will send request to the remote acceptor, if the acceptor is down, the proposer will get an **io.grpc.StatusRuntimeException**, in this case, we'll decrease the total up server number by 1 and consider the majority according to the updated number. To avoid repeatly decrease the server number, a hashmap for down server address and port  is used. And for every request, the proposer will send request to all servers indicated in the configuration file to check if they are online.
+
 
 ![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/proposerToAcceptor.png?raw=true)
 
@@ -54,5 +60,31 @@ this xml file contains the configuration of log4j logger, and will be used by se
 ------------------------------------------------------
 
 generated sources is located in _target/generated-sources_. Interface and classes can be found in _target/generated-sources/protobuf/grpc-java/com.angrycyz.grpc_ and  _target/generated-sources/protobuf/java/com.angrycyz.grpc_ 
+
+------------------------------------------------------
+## How to run the server and client
+------------------------------------------------------
+
+Firstly, compile all classes:
+
+    mvn compile
+
+to execute the 5 servers, use:
+
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12116"
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12117"
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12118"
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12119"
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12110"
+    
+the argument is the port numbers of the servers, if you would like to use other ports, please also change the configuration file _server_config.json_ to make sure all servers know each other from the configuration file.
+
+to run the client, use:
+
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Client" -Dexec.args="localhost 12117"
+    
+you can use the client to connect to any server and send "put", "get" or "delete" request. I also add a "clearall" function to simplify the test process.
+
+    
 
 

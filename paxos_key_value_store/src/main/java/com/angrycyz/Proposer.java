@@ -8,7 +8,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.rmi.CORBA.Util;
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -64,8 +68,10 @@ public class Proposer implements Runnable{
                  * could also ask all acceptor, some will fail randomly
                  * here only take n/2 + 1
                  */
-//                int quorumNum = (this.aStubs.size() + 1)/2 + 1;
-                int quorumNum = this.aStubs.size();
+                int quorumNum = this.aStubs.size() + 1;
+                int updateNum = quorumNum;
+                Set<String> downServerSet = new HashSet<String>();
+                logger.info("Quorum number:" + Integer.toString(quorumNum));
                 int maxRetry = 3;
                 int retry = 0;
 
@@ -91,6 +97,7 @@ public class Proposer implements Runnable{
                             1,
                             true));
                     logger.info("Send proposal message to local acceptor");
+
                     try {
                         QueueMsg localPromise = this.localAcceptorReplyBq.poll(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS);
                         if (localPromise.getpId() > maxPId || localPromise.getServerId() > this.serverId) {
@@ -101,9 +108,10 @@ public class Proposer implements Runnable{
                             promiseCount += 1;
                         }
                     } catch (Exception e) {
-                        logger.warn("Did not receive from local acceptor: "
+                        logger.warn("Did not receive promise from local acceptor: "
                                 + e.getMessage());
                     }
+
                     /* send to all other acceptors */
                     for (int i = 0; i < quorumNum; i++) {
                         Pair<String, Integer> address = addressList.get(i);
@@ -122,13 +130,28 @@ public class Proposer implements Runnable{
                             if (promiseMsg.getPId() > maxPId || promiseMsg.getServerId() > this.serverId) {
                                 maxPId = promiseMsg.getPId();
                                 msg = promiseMsg.getMsg();
-                                logger.info("Receive higher id proposal:" + msg);
+                                logger.info("Receive higher id offer:" + msg);
                             } else {
                                 promiseCount += 1;
                             }
+                        } catch (io.grpc.StatusRuntimeException ie) {
+                            logger.warn("Lose connection to acceptor "
+                                    + address.getKey() + " "
+                                    + Integer.toString(address.getValue()) + ": "
+                                    + ie.getMessage());
+                            String addressKey = address.getKey() + " " + Integer.toString(address.getValue());
+                            if (!downServerSet.contains(addressKey)) {
+                                updateNum -= 1;
+                                downServerSet.add(addressKey);
+                                logger.info("Quorum number decrease by 1, now: " + Integer.toString(updateNum));
+                            }
+                            if (updateNum < 3) {
+                                logger.warn("Online server number smaller than 3! Waiting for more server...");
+                                break;
+                            }
                         } catch (Exception e) {
-                            /* do nothing, and do not increase the count */
-                            logger.warn("Does not receive from one acceptor "
+                            /* do not increase the count */
+                            logger.warn("Did not receive promise from one acceptor "
                                     + address.getKey() + " "
                                     + Integer.toString(address.getValue()) + ": "
                                     + e.getMessage());
@@ -150,7 +173,7 @@ public class Proposer implements Runnable{
                      * if yes, update proposal value, if no, use current value
                      */
 
-                    if (promiseCount > quorumNum/2) {
+                    if (promiseCount > updateNum/2) {
                         /* enough promise */
                         /* phase 2 */
                         int acceptedCount = 0;
@@ -179,7 +202,7 @@ public class Proposer implements Runnable{
                                 acceptedCount += 1;
                             }
                         } catch (Exception e) {
-                            logger.warn("Does not receive from local acceptor: "
+                            logger.warn("Did not receive proposal from local acceptor: "
                                     + e.getMessage());
                         }
 
@@ -201,8 +224,23 @@ public class Proposer implements Runnable{
                                     } else {
                                         acceptedCount += 1;
                                     }
+                                } catch (io.grpc.StatusRuntimeException ie) {
+                                    logger.warn("Lose connection to acceptor "
+                                            + address.getKey() + " "
+                                            + Integer.toString(address.getValue()) + ": "
+                                            + ie.getMessage());
+                                    String addressKey = address.getKey() + " " + Integer.toString(address.getValue());
+                                    if (!downServerSet.contains(addressKey)) {
+                                        updateNum -= 1;
+                                        downServerSet.add(addressKey);
+                                        logger.info("Quorum number decrease by 1, now: " + Integer.toString(updateNum));
+                                    }
+                                    if (updateNum < 3) {
+                                        logger.warn("Online server number smaller than 3! Waiting for more server...");
+                                        break;
+                                    }
                                 } catch (Exception e) {
-                                    logger.warn("Does not receive from one acceptor "
+                                    logger.warn("Did not receive proposal from one acceptor "
                                             + address.getKey() + " "
                                             + Integer.toString(address.getValue()) + ": "
                                             + e.getMessage());
@@ -219,7 +257,7 @@ public class Proposer implements Runnable{
                             retry = maxRetry;
                         }
 
-                        if (acceptedCount > quorumNum/2) {
+                        if (acceptedCount > updateNum/2) {
                             /* do not retry, finish */
                             logger.info("Successfully proposed");
                             retry = maxRetry;
