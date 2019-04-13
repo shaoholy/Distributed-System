@@ -14,6 +14,9 @@ import java.util.List;
 public class Utility {
 
     private static final Logger logger = LogManager.getLogger("Utility");
+    public static final int ASTUB_TIMEOUT = 3;
+    public static final int LSTUB_TIMEOUT = 3;
+    public static final int MIN_UP_NUM = 3;
 
     /* check if port is valid integer and between 0 - 2^16 */
     public static Pair<Boolean, Integer> isPortValid(String portString) {

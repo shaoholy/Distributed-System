@@ -11,13 +11,16 @@ public class Acceptor implements Runnable{
     private static final Logger logger = LogManager.getLogger("Acceptor");
     private BlockingQueue<QueueMsg> acceptorBq;
     private BlockingQueue<QueueMsg> acceptorReplyBq;
+    private BlockingQueue<QueueMsg> localAcceptorReplyBq;
     private int curPhase = 0;
     private QueueMsg curPromise;
 
     Acceptor(BlockingQueue<QueueMsg> acceptorBq,
-             BlockingQueue<QueueMsg> acceptorReplyBq) {
+             BlockingQueue<QueueMsg> acceptorReplyBq,
+             BlockingQueue<QueueMsg> localAcceptorReplyBq) {
         this.acceptorBq = acceptorBq;
         this.acceptorReplyBq = acceptorReplyBq;
+        this.localAcceptorReplyBq = localAcceptorReplyBq;
     }
 
     public void run() {
@@ -45,15 +48,27 @@ public class Acceptor implements Runnable{
                 } else {
                     /* accept phase */
                     this.curPhase = 2;
+                    if (queueMsg.getpId() > this.curPromise.getpId()) {
+                        this.curPromise = queueMsg;
+                    }
                 }
 
-                acceptorReplyBq.put(new QueueMsg(curPromise.getKey(),
-                        curPromise.getValue(),
-                        curPromise.getOperation(),
-                        curPromise.getpId(),
-                        curPromise.getServerId(),
-                        curPhase));
-
+                if (queueMsg.isLocal()) {
+                    localAcceptorReplyBq.put(new QueueMsg(curPromise.getKey(),
+                            curPromise.getValue(),
+                            curPromise.getOperation(),
+                            curPromise.getpId(),
+                            curPromise.getServerId(),
+                            curPhase,
+                            true));
+                } else {
+                    acceptorReplyBq.put(new QueueMsg(curPromise.getKey(),
+                            curPromise.getValue(),
+                            curPromise.getOperation(),
+                            curPromise.getpId(),
+                            curPromise.getServerId(),
+                            curPhase));
+                }
 
             } catch (Exception e) {
                 logger.error(e.getMessage());

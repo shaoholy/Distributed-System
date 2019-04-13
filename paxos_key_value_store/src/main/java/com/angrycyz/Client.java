@@ -16,14 +16,16 @@ import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 public class Client {
-    private static final Logger logger = LogManager.getLogger("Client");
     private final ManagedChannel channel;
     private final KeyValueStoreGrpc.KeyValueStoreBlockingStub blockingStub;
     private final int STUB_TIMEOUT = 3;
+    private String connectedPort;
+    private static final Logger logger = LogManager.getLogger("Client");
 
     public Client(String address, int port) {
         this(ManagedChannelBuilder.forAddress(address, port)
                 .usePlaintext().build());
+        connectedPort = Integer.toString(port);
     }
 
     Client(ManagedChannel channel) {
@@ -34,9 +36,13 @@ public class Client {
     public void sendOperation() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            logger.info("Please give Operation: ");
+//            logger.info("Please give Operation: ");
             if (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
+                if (line.equals("EOF")) {
+                    System.exit(1);
+                }
+                logger.info(connectedPort + " Given operation:" + line);
                 Pair<String[], Error> pair = processRequest(line);
                 if (pair.getValue() != null) {
                     logger.error(pair.getValue().getMessage() +
@@ -44,21 +50,35 @@ public class Client {
                             " Or: GET <key>" +
                             " Or: DELETE <key>");
                 } else {
-                    OperationReply reply;
+                    OperationReply reply = null;
 
                     if (pair.getKey()[0].equals("PUT")) {
                         reply = sendPutOperation(pair.getKey()[1], pair.getKey()[2]);
                     } else if (pair.getKey()[0].equals("GET")) {
                         reply = sendGetOperation(pair.getKey()[1]);
-                    } else {
+                    } else if (pair.getKey()[0].equals("DELETE")) {
                         reply = sendDeleteOperation(pair.getKey()[1]);
+                    } else if (pair.getKey()[0].equals("CLEARALL")) {
+                        reply = sendClearAllOperation();
                     }
                     if (reply != null) {
-                        logger.info("Server Response: " + reply.getReply());
+                        logger.info(connectedPort + " Server Response: " + reply.getReply());
                     }
                 }
             }
         }
+    }
+
+    public OperationReply sendClearAllOperation() {
+        KeyRequest request = KeyRequest
+                .newBuilder()
+                .build();
+        try {
+            return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapClearAll(request);
+        } catch (Exception e) {
+            logger.error("Cannot clear all : " + e.getMessage());
+        }
+        return null;
     }
 
     public OperationReply sendGetOperation(String key) {
@@ -103,7 +123,7 @@ public class Client {
 
     private Pair<String[], Error> processRequest(String request) {
         String[] requestArray = request.split(" ");
-        if (requestArray.length != 2 && requestArray.length != 3) {
+        if (requestArray.length > 3) {
             return new Pair<String[], Error>(null, new Error("Invalid Operation"));
         }
 
@@ -112,7 +132,7 @@ public class Client {
 
         /* check if the operation is one of following */
         if (upperRequest.equals("PUT")) {
-            if (requestArray.length == 2) {
+            if (requestArray.length <= 2) {
                 return new Pair<String[], Error>(null,
                         new Error("Invalid Operation"));
             }
@@ -121,12 +141,20 @@ public class Client {
                     new String[]{upperRequest, requestArray[1], requestArray[2]},
                     null);
         } else if (upperRequest.equals("GET") || upperRequest.equals("DELETE")) {
-            if (requestArray.length == 3) {
+            if (requestArray.length != 2) {
                 return new Pair<String[], Error>(null,
                         new Error("Invalid Operation"));
             }
             return new Pair<String[], Error>(
                     new String[]{upperRequest, requestArray[1]},
+                    null);
+        } else if (upperRequest.equals("CLEARALL")) {
+            if (requestArray.length != 1) {
+                return new Pair<String[], Error>(null,
+                        new Error("Invalid Operation"));
+            }
+            return new Pair<String[], Error>(
+                    new String[]{upperRequest},
                     null);
         }
 

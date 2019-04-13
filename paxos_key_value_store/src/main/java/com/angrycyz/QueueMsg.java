@@ -58,6 +58,15 @@ public class QueueMsg {
         this.phase = phase;
     }
 
+    public boolean isLocal() {
+        return local;
+    }
+
+    public void setLocal(boolean local) {
+        this.local = local;
+    }
+
+
     public QueueMsg(String key, String value, String operation) {
         this.key = key;
         this.value = value;
@@ -70,4 +79,16 @@ public class QueueMsg {
     private long pId;
     private long serverId;
     private int phase;
+
+    public QueueMsg(String key, String value, String operation, long pId, long serverId, int phase, boolean local) {
+        this.key = key;
+        this.value = value;
+        this.operation = operation;
+        this.pId = pId;
+        this.serverId = serverId;
+        this.phase = phase;
+        this.local = local;
+    }
+
+    private boolean local = false;
 }

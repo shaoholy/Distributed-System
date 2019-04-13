@@ -14,10 +14,12 @@ import java.io.File;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class Server {
     private static final Logger logger = LogManager.getLogger("Server");
@@ -34,9 +36,10 @@ public class Server {
     public Learner learner;
     private int bqSize = 10;
     public BlockingQueue<QueueMsg> proposerBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
-    public BlockingQueue<Boolean> proposerReplyBq = new ArrayBlockingQueue<Boolean>(bqSize);
+    public BlockingQueue<Pair<String, Boolean>> proposerReplyBq = new ArrayBlockingQueue<Pair<String, Boolean>>(bqSize);
     public BlockingQueue<QueueMsg> acceptorBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
     public BlockingQueue<QueueMsg> acceptorReplyBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
+    public BlockingQueue<QueueMsg> localAcceptorReplyBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
     public BlockingQueue<QueueMsg> learnerBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
     public BlockingQueue<String> learnerReplyBq = new ArrayBlockingQueue<String>(bqSize);
     private long serverId;
@@ -52,8 +55,9 @@ public class Server {
         this.port = port;
         this.serverConfig = serverConfig;
 
-        this.acceptor = new Acceptor(acceptorBq, acceptorReplyBq);
-        this.proposer = new Proposer(aStubs, proposerBq, proposerReplyBq, learnerBq, serverId);
+        this.acceptor = new Acceptor(acceptorBq, acceptorReplyBq, localAcceptorReplyBq);
+        this.proposer = new Proposer(aStubs, proposerBq, proposerReplyBq, acceptorBq, localAcceptorReplyBq,
+                learnerBq, learnerReplyBq, serverId, addressList);
         this.learner = new Learner(learnerBq, learnerReplyBq, map);
 
         new Thread(acceptor).start();
@@ -69,7 +73,8 @@ public class Server {
             logger.info("Received request: " + "delete " + key);
             try {
                 proposerBq.put(new QueueMsg(key, null, "delete"));
-                String result = learnerReplyBq.take();
+                Pair<String, Boolean> resultPair= proposerReplyBq.take();
+                String result = resultPair.getKey();
                 OperationReply reply = OperationReply.newBuilder()
                         .setReply(result)
                         .build();
@@ -89,7 +94,8 @@ public class Server {
             logger.info("Received request: " + "put " + key + " " + value);
             try {
                 proposerBq.put(new QueueMsg(key, value, "put"));
-                String result = learnerReplyBq.take();
+                Pair<String, Boolean> resultPair= proposerReplyBq.take();
+                String result = resultPair.getKey();
                 OperationReply reply = OperationReply.newBuilder()
                         .setReply(result)
                         .build();
@@ -123,6 +129,29 @@ public class Server {
                 logger.error(e.getMessage());
             }
         }
+
+        @Override
+        public void mapClearAll(KeyRequest request, StreamObserver<OperationReply> responseObserver) {
+            try {
+                map.clear();
+                KeyRequest request1 = KeyRequest.newBuilder().build();
+                for (int i = 0; i < aStubs.size(); i++) {
+                    OperationReply r = aStubs.get(i)
+                            .withDeadlineAfter(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS)
+                            .mapClear(request1);
+                }
+                logger.info("Cleared all");
+                OperationReply reply = OperationReply.newBuilder()
+                        .setReply("Success")
+                        .build();
+
+                responseObserver.onNext(reply);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error(e.getMessage());
+            }
+        }
+
     }
 
     class AcceptLearnPbImpl extends AcceptLearnPbGrpc.AcceptLearnPbImplBase {
@@ -172,7 +201,7 @@ public class Server {
                         + acceptorReply.getKey() + " "
                         + acceptorReply.getValue();
                 PaxosMsg reply = PaxosMsg.newBuilder()
-                        .setAction("promise")
+                        .setAction("accept")
                         .setPId(acceptorReply.getpId())
                         .setServerId(acceptorReply.getServerId())
                         .setMsg(replyMsg)
@@ -209,6 +238,34 @@ public class Server {
             }
         }
 
+        @Override
+        public void getState(StateRequest request, StreamObserver<StateReply> responseObserver) {
+            try {
+                StateReply stateReply = StateReply
+                        .newBuilder()
+                        .putAllKv(map)
+                        .build();
+                responseObserver.onNext(stateReply);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error(e.getMessage());
+            }
+        }
+
+        @Override
+        public void mapClear(KeyRequest request, StreamObserver<OperationReply> responseObserver) {
+            try {
+                map.clear();
+                logger.info("Clear the map");
+                OperationReply reply = OperationReply.newBuilder()
+                        .setReply("Success")
+                        .build();
+                responseObserver.onNext(reply);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error(e.getMessage());
+            }
+        }
     }
 
     public void run() {
@@ -219,7 +276,33 @@ public class Server {
                 logger.info("Keyboard Interrupt, Shutdown...");
             }
         });
+
+        initializeChannels();
+
         try {
+            /* first, ask other servers for the most recent map */
+            for (int i = 0; i < aStubs.size(); i ++) {
+                Pair<String, Integer> address = addressList.get(i);
+                try {
+                    StateReply stateReply = aStubs.get(i)
+                            .withDeadlineAfter(Utility.LSTUB_TIMEOUT, TimeUnit.SECONDS)
+                            .getState(StateRequest.newBuilder().build());
+                    map.clear();
+                    for (Map.Entry<String, String> entry: stateReply.getKvMap().entrySet()) {
+                        map.put(entry.getKey(), entry.getValue());
+                    }
+                    logger.info("Copied map from learner "
+                            + address.getKey() + " "
+                            + Integer.toString(address.getValue()));
+                    break;
+                } catch (Exception e) {
+                    logger.warn("Fail to synchronize with learner "
+                            + address.getKey() + " "
+                            + Integer.toString(address.getValue()));
+                }
+            }
+
+            /* start service */
             this.server = ServerBuilder.forPort(this.port)
                     .addService(new KeyValueStoreImpl())
                     .addService(new AcceptLearnPbImpl())
@@ -229,8 +312,6 @@ public class Server {
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
-
-        initializeChannels();
 
     }
 
@@ -244,6 +325,7 @@ public class Server {
                     && port == this.port) {
                 continue;
             }
+            addressList.add(new Pair<String, Integer>(address, port));
             buildChannels(ManagedChannelBuilder
                     .forAddress(processConfig.getKey(), processConfig.getValue())
                     .usePlaintext()
