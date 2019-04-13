@@ -7,6 +7,7 @@ service KeyValueStore {
     rpc MapGet(KeyRequest) returns (OperationReply) {}
     rpc MapPut(KeyValueRequest) returns (OperationReply) {}
     rpc MapDelete(KeyRequest) returns (OperationReply) {}
+    rpc MapClearAll(KeyRequest) returns (OperationReply) {}
 }
 
 message KeyRequest {

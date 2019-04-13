@@ -4,20 +4,22 @@ option java_multiple_files = true;
 option java_package = "com.angrycyz.grpc";
 
 import "paxosMsg.proto";
+import "kvStore.proto";
 
 service AcceptLearnPb {
     rpc prepare (PaxosMsg) returns (PaxosMsg) {}
     rpc accept (PaxosMsg) returns (PaxosMsg) {}
     rpc getState(StateRequest) returns (StateReply) {}
     rpc learnProposal(PaxosMsg) returns (LearnReply) {}
+    rpc MapClear(KeyRequest) returns (OperationReply) {}
 }
 
 message StateRequest {
-    string msg = 1;
+
 }
 
 message StateReply {
-    string msg = 1;
+    map<string, string> kv = 1;
 }
 
 message LearnReply {
