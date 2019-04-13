@@ -10,15 +10,22 @@ The diagram shows how the paxos-based key-value store server is implemented. We 
 
 The client could connect to any of the server, send sends request to the proposer
 
-**Phase 1**
+**(Phase 1)**
 then the proposer will then send prepare message to all acceptors. In the program, the communication between the proposer and remote acceptor(let's say "remote" for different processes since the address could be configured differently) is based on gRPC, and the communication between the proposer and local acceptor is based on memory sharing, here I use BlockingQueue with timeout on blocking to realize the threads communication.  
 
 when the acceptor receives the prepare request, it will check if this is the first time getting prepare request, if it is, the acceptor promise with the incoming prepare request,  if not, the acceptor then compare the proposal id and server id of the incoming request with the recorded one, it always reply the proposer with the larger one and update the stored request with the larger one.
 
-**Phase 2**
+After the proposer receives the reply from the acceptor in the first phase, it knows if the acceptor give it a promise. If any of the acceptor replys with higher proposal id, the proposer abandon its initial request and use a new proposal id with the acceptor's replying message. If there's no reply with higher offer, the proposer check if it has received the majority reply, if yes, it continues the second phase, otherwise it retries asking for promise. The retry times I set in the program is 3. 
+
+**(Phase 2)**
+In the second phase, the proposer sends the proposal to the acceptor, if the acceptor still replies with higher offer, then the proposer will abandon the proposal. Same as the first phase, the proposer also checks if it received the majority reponse from acceptor, if no, it abandon the proposal, and if yes, it announce to all learners according to "Paxos Made Simple".
+
+The learner then respond to the coordinator so that the coordinator sends the result to the clients.
 
 
+**What happens if any of the server crashes?**
 
+When all servers are up and running, every final proposal made by one proposer will be broadcast to all servers, so as long as the servers never go down, they should always have the same value. But what if any server crashes? The solution is to add one learner API, when the server crashes and restarts, it will call the learner API to get the most recent state and update the map so that to keep the same data as in other servers.
 
 ![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/proposerToAcceptor.png?raw=true)
 
