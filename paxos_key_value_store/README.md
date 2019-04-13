@@ -85,6 +85,9 @@ to run the client, use:
     
 you can use the client to connect to any server and send "put", "get" or "delete" request. I also add a "clearall" function to simplify the test process.
 
+if you would like to see how the online server number is determined by the proposer, simply grep the keyword "Quorum" from the log in the console, for example:
+
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12116" | grep Quorum
     
 
 
