@@ -32,6 +32,12 @@ When all servers are up and running, every final proposal made by one proposer w
 
 In every phase, the proposer will send request to the remote acceptor, if the acceptor is down, the proposer will get an **io.grpc.StatusRuntimeException**, in this case, we'll decrease the total up server number by 1 and consider the majority according to the updated number. To avoid repeatly decrease the server number, a hashmap for down server address and port  is used. And for every request, the proposer will send request to all servers indicated in the configuration file to check if they are online.
 
+**Assumptions**
+
+1) "get" operation is not handled though 2PC
+2) server can go down, but not all servers can go down, since the key-value entries are only stored in memory and to get majority votes there should be at least 3 acceptors.
+3) Have a proposer to issue the proposal to learner according to Page 7 of _Paxos Made Simple_: " If a learner needs to know whether a value has been chosen, it can have a proposer issue a proposal, using the algorithm described above".
+
 
 ![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/proposerToAcceptor.png?raw=true)
 
@@ -83,7 +89,7 @@ to run the client, use:
 
     mvn exec:java -Dexec.mainClass="com.angrycyz.Client" -Dexec.args="localhost 12117"
     
-you can use the client to connect to any server and send "put", "get" or "delete" request. I also add a "clearall" function to simplify the test process.
+you can use the client to connect to any server and send "put", "get" or "delete" request. I also add a "clearall" function to simplify the test process, just send a "clearall" request will delete all map entries. 
 
 if you would like to see how the online server number is determined by the proposer, simply grep the keyword "Quorum" from the log in the console, for example:
 
