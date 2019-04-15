@@ -7,8 +7,6 @@ import javafx.util.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.rmi.CORBA.Util;
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +53,7 @@ public class Proposer implements Runnable{
         while (true) {
             try {
                 QueueMsg queueMsg = this.proposerBq.take();
-                logger.info("Proposer received request");
+                logger.debug("Proposer received request");
                 /* send prepare message to all acceptor
                  * except itself, communicate with local
                  * acceptor using blockingqueue
@@ -69,7 +67,7 @@ public class Proposer implements Runnable{
                  * here only take n/2 + 1
                  */
                 int quorumNum = this.aStubs.size() + 1;
-                int updateNum = quorumNum;
+                int updateNum = quorumNum + 1;
                 Set<String> downServerSet = new HashSet<String>();
                 logger.info("Quorum number:" + Integer.toString(quorumNum));
                 int maxRetry = 3;
@@ -77,7 +75,7 @@ public class Proposer implements Runnable{
 
                 while (retry < maxRetry) {
                     if (retry > 0) {
-                        logger.info("Retry the " + Integer.toString(retry) + " time");
+                        logger.debug("Retry the " + Integer.toString(retry) + " time");
                     }
                     /* phase 1 */
                     int promiseCount = 0;
@@ -96,14 +94,14 @@ public class Proposer implements Runnable{
                             pId, this.serverId,
                             1,
                             true));
-                    logger.info("Send proposal message to local acceptor");
+                    logger.debug("Send proposal message to local acceptor");
 
                     try {
                         QueueMsg localPromise = this.localAcceptorReplyBq.poll(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS);
                         if (localPromise.getpId() > maxPId || localPromise.getServerId() > this.serverId) {
                             maxPId = localPromise.getpId();
                             msg = localPromise.getOperation() + " " + localPromise.getKey() + " " + localPromise.getValue();
-                            logger.info("Accept higher id proposal:" + msg);
+                            logger.info("Receive higher id offer:" + msg);
                         } else {
                             promiseCount += 1;
                         }
@@ -113,13 +111,13 @@ public class Proposer implements Runnable{
                     }
 
                     /* send to all other acceptors */
-                    for (int i = 0; i < quorumNum; i++) {
+                    for (int i = 0; i < quorumNum - 1; i++) {
                         Pair<String, Integer> address = addressList.get(i);
                         try {
                             PaxosMsg promiseMsg = this.aStubs.get(i)
                                     .withDeadlineAfter(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS)
                                     .prepare(prepareMsg);
-                            logger.info("Send prepare message to acceptor "
+                            logger.debug("Send prepare message to acceptor "
                                             + address.getKey() + " "
                                             + Integer.toString(address.getValue()) + ", "
                                             + "received promise message: " + promiseMsg.getMsg());
@@ -192,7 +190,7 @@ public class Proposer implements Runnable{
                                 pId, this.serverId,
                                 2,
                                 true));
-                        logger.info("Send proposal message to local acceptor");
+                        logger.debug("Send proposal message to local acceptor");
                         try {
                             QueueMsg localAccepted = this.localAcceptorReplyBq.poll(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS);
                             if (localAccepted.getpId() > maxPId || localAccepted.getServerId() > this.serverId) {
@@ -208,13 +206,13 @@ public class Proposer implements Runnable{
 
                         if (!rejected) {
                         /* send to all other acceptors */
-                            for (int i = 0; i < quorumNum; i++) {
+                            for (int i = 0; i < quorumNum - 1; i++) {
                                 Pair<String, Integer> address = addressList.get(i);
                                 try {
                                     PaxosMsg acceptedReply = this.aStubs.get(i)
                                             .withDeadlineAfter(Utility.ASTUB_TIMEOUT, TimeUnit.SECONDS)
                                             .accept(proposeMsg);
-                                    logger.info("Send proposal message to acceptor "
+                                    logger.debug("Send proposal message to acceptor "
                                             + address.getKey() + " "
                                             + Integer.toString(address.getValue()) + ", "
                                             + "received accept message: " + acceptedReply.getMsg());
@@ -297,7 +295,7 @@ public class Proposer implements Runnable{
             QueueMsg queueMsg = new QueueMsg(key, value, operation, pId, serverId, -1);
             this.learnerBq.put(queueMsg);
             result = learnerReplyBq.take();
-            logger.info("Send learn request to local learner");
+            logger.debug("Send learn request to local learner");
         } catch (Exception e) {
             logger.error("Fail to announce to local learner: " + e.getMessage());
         }
@@ -310,7 +308,7 @@ public class Proposer implements Runnable{
                         .withDeadlineAfter(Utility.LSTUB_TIMEOUT, TimeUnit.SECONDS)
                         .learnProposal(proposeMsg);
                 result = learnReply.getMsg();
-                logger.info("Send learn request to learner "
+                logger.debug("Send learn request to learner "
                         + address.getKey() + " "
                         + Integer.toString(address.getValue())
                         + ", received learn reply: "

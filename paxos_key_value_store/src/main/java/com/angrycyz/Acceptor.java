@@ -27,7 +27,7 @@ public class Acceptor implements Runnable{
         while(true) {
             try {
                 QueueMsg queueMsg = this.acceptorBq.take();
-                logger.info("Acceptor received prepare or propose message");
+                logger.debug("Acceptor received prepare or propose message");
                 int phase = queueMsg.getPhase();
                 if (phase == 1) {
                     /* promise phase */
