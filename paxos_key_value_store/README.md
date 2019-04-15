@@ -34,9 +34,10 @@ In every phase, the proposer will send request to the remote acceptor, if the ac
 
 **Assumptions**
 
-1) "get" operation is not handled though 2PC
-2) server can go down, but not all servers can go down, since the key-value entries are only stored in memory and to get majority votes there should be at least 3 acceptors.
-3) Have a proposer to issue the proposal to learner according to Page 7 of _Paxos Made Simple_: " If a learner needs to know whether a value has been chosen, it can have a proposer issue a proposal, using the algorithm described above".
+1) no leader is used, any server connected by the clients will be regarded as the coordinator and should not die.
+2) "get" operation is not handled though 2PC
+3) server can go down, but not all servers can go down, since the key-value entries are only stored in memory and to get majority votes there should be at least 3 acceptors. and when one server goes down, the proposer inside the server goes down, the client need to connect to other server
+4) Have a proposer to issue the proposal to learner according to Page 7 of _Paxos Made Simple_: " If a learner needs to know whether a value has been chosen, it can have a proposer issue a proposal, using the algorithm described above".
 
 
 ![alt text](https://github.com/angrycyz/Distributed-System/blob/master/paxos_key_value_store/proposerToAcceptor.png?raw=true)
@@ -85,6 +86,13 @@ to execute the 5 servers, use:
     
 the argument is the port numbers of the servers, if you would like to use other ports, please also change the configuration file _server_config.json_ to make sure all servers know each other from the configuration file.
 
+if you want to use a random acceptor(random reject/accept, I set the probability as 50%) you can add "random" as the second argument, for example:
+
+    mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12116 random"
+    
+bring up at least 3 server can make the program working, if you close any of the servers, you can restart it, but be patient waiting for several seconds and send requests again, the server can join the others.
+
+
 to run the client, use:
 
     mvn exec:java -Dexec.mainClass="com.angrycyz.Client" -Dexec.args="localhost 12117"
@@ -94,6 +102,11 @@ you can use the client to connect to any server and send "put", "get" or "delete
 if you would like to see how the online server number is determined by the proposer, simply grep the keyword "Quorum" from the log in the console, for example:
 
     mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12116" | grep Quorum
+    
+The file _start_all_clients.sh_ will start 3 clients and each of them takes input1/input2/input3 as the input to send requests to servers. You can also add more requests in the input file, just remember to add "EOF" at the last line. 
+To run the _start_all_clients.sh_, simply do this:
+
+    sh start_all_clients.sh
     
 
 
