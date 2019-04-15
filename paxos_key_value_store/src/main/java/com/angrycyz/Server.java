@@ -33,6 +33,7 @@ public class Server {
     private String ip;
     public Proposer proposer;
     public Acceptor acceptor;
+    public AcceptorRandom acceptorRandom;
     public Learner learner;
     private int bqSize = 10;
     public BlockingQueue<QueueMsg> proposerBq = new ArrayBlockingQueue<QueueMsg>(bqSize);
@@ -45,7 +46,7 @@ public class Server {
     private long serverId;
     private ConcurrentHashMap<String, String> map = new ConcurrentHashMap<String, String>();
 
-    Server(int port, ServerConfig serverConfig) {
+    Server(int port, ServerConfig serverConfig, boolean random) {
         this.serverId = System.currentTimeMillis();
         try {
             this.ip = InetAddress.getLocalHost().getHostAddress();
@@ -55,12 +56,17 @@ public class Server {
         this.port = port;
         this.serverConfig = serverConfig;
 
-        this.acceptor = new Acceptor(acceptorBq, acceptorReplyBq, localAcceptorReplyBq);
+        if (!random) {
+            this.acceptor = new Acceptor(acceptorBq, acceptorReplyBq, localAcceptorReplyBq);
+            new Thread(acceptor).start();
+        } else {
+            this.acceptorRandom = new AcceptorRandom(acceptorBq, acceptorReplyBq, localAcceptorReplyBq);
+            new Thread(acceptorRandom).start();
+        }
         this.proposer = new Proposer(aStubs, proposerBq, proposerReplyBq, acceptorBq, localAcceptorReplyBq,
                 learnerBq, learnerReplyBq, serverId, addressList);
         this.learner = new Learner(learnerBq, learnerReplyBq, map);
 
-        new Thread(acceptor).start();
         new Thread(proposer).start();
         new Thread(learner).start();
     }
@@ -393,9 +399,14 @@ public class Server {
 
         logger.info("Log properties file location: " + propLocation);
 
+        boolean random = false;
+
         /* get valid port number */
-        if (args.length == 1 && (portPair = Utility.isPortValid(args[0])).getKey()) {
+        if (args.length >= 1 && (portPair = Utility.isPortValid(args[0])).getKey()) {
             port = portPair.getValue();
+            if (args.length > 1 && args[1].equals("random")) {
+                random = true;
+            }
         } else {
             Scanner scanner = new Scanner(System.in);
 
@@ -404,8 +415,11 @@ public class Server {
                 if (scanner.hasNextLine()) {
                     String line = scanner.nextLine();
                     String[] line_arg = line.trim().split("\\s+");
-                    if (line_arg.length == 1 && (portPair = Utility.isPortValid(line_arg[0])).getKey()) {
+                    if (line_arg.length >= 1 && (portPair = Utility.isPortValid(line_arg[0])).getKey()) {
                         port = portPair.getValue();
+                        if (args.length > 1 && args[1].equals("random")) {
+                            random = true;
+                        }
                         break;
                     }
                 }
@@ -419,7 +433,7 @@ public class Server {
         /* use start epoch as server id
          * can also use argument to give server id
          */
-        Server server = new Server(port, serverConfig);
+        Server server = new Server(port, serverConfig, random);
         server.run();
         server.blockUntilShutdown();
     }
