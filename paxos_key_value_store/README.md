@@ -86,7 +86,7 @@ to execute the 5 servers, use:
     
 the argument is the port numbers of the servers, if you would like to use other ports, please also change the configuration file _server_config.json_ to make sure all servers know each other from the configuration file.
 
-if you want to use a random acceptor(random reject/accept, I set the probability as 50%) you can add "random" as the second argument, for example:
+if you want to use a random acceptor(random reject/accept, I set the reject probability as 10%) you can add "random" as the second argument, for example:
 
     mvn exec:java -Dexec.mainClass="com.angrycyz.Server" -Dexec.args="12116 random"
     
