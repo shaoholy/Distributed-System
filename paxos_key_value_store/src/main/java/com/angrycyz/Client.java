@@ -36,7 +36,7 @@ public class Client {
     public void sendOperation() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-//            logger.info("Please give Operation: ");
+            logger.info("Please give Operation: ");
             if (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 if (line.equals("EOF")) {
@@ -102,7 +102,7 @@ public class Client {
         try {
             return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapDelete(request);
         } catch (Exception e) {
-            logger.error("Cannot GET from server: " + e.getMessage());
+            logger.error("Cannot DELETE from server: " + e.getMessage());
         }
         return null;
     }
@@ -116,7 +116,7 @@ public class Client {
         try {
             return blockingStub.withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS).mapPut(request);
         } catch (Exception e) {
-            logger.error("Cannot GET from server: " + e.getMessage());
+            logger.error("Cannot Put to server: " + e.getMessage());
         }
         return null;
     }
