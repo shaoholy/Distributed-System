@@ -1,10 +1,9 @@
 package com.team3;
 
-import com.team3.grpc.AppServiceGrpc;
-import com.team3.grpc.BalanceResponse;
-import com.team3.grpc.ClientRequest;
-import com.team3.grpc.LoadServiceGrpc;
+import com.team3.grpc.*;
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import javafx.util.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +12,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class LoadBalancer {
     private static final Logger logger = LogManager.getLogger("LoadBalancer");
@@ -23,6 +23,10 @@ public class LoadBalancer {
     private SortedMap<Integer, String> virtualNodes = new TreeMap<Integer, String>();
     private List<String> realNodes = new ArrayList<String>();
     private final String LOCAL_IP = "127.0.0.1";
+    private Map<String, ManagedChannel> channels = new HashMap<String, ManagedChannel>();
+    private Map<String, AppServiceGrpc.AppServiceBlockingStub> stubs = new HashMap<String, AppServiceGrpc.AppServiceBlockingStub>();
+    private final int STUB_TIMEOUT = 3;
+    private final int MAX_RETRY = 3;
 
     LoadBalancer(int port, ServerConfig serverConfig) {
         this.port = port;
@@ -30,7 +34,7 @@ public class LoadBalancer {
 
         /* add real nodes */
         for (Pair<String, Integer> appServerNode: serverConfig.appServerList) {
-            String address = appServerNode.getKey().equals("localhost")? LOCAL_IP : appServerNode.getKey();
+            String address = appServerNode.getKey().toLowerCase().equals("localhost")? LOCAL_IP : appServerNode.getKey();
             realNodes.add(address + ":" + String.valueOf(appServerNode.getValue()));
         }
         /* add virtual nodes */
@@ -75,7 +79,47 @@ public class LoadBalancer {
         public void balance(ClientRequest request, StreamObserver<BalanceResponse> responseObserver) {
             String addrStr = request.getAddress() + ":" + String.valueOf(request.getPort());
             String nodeAddr = getServer(addrStr);
+            int retry = 0;
+            boolean firsttime = true;
+            AppResponse appResponse = null;
 
+            while (retry < MAX_RETRY) {
+                try {
+                    if (firsttime) {
+                        appResponse = stubs.get(nodeAddr)
+                                .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
+                                .clientRequestHandling(request);
+                    } else {
+                        for (AppServiceGrpc.AppServiceBlockingStub stub:stubs.values()) {
+                            appResponse = stub
+                                    .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
+                                    .clientRequestHandling(request);
+                            break;
+                        }
+                    }
+                    retry = MAX_RETRY;
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                }
+                firsttime = false;
+                retry++;
+            }
+
+            BalanceResponse response;
+            if (appResponse != null) {
+                response = BalanceResponse.newBuilder()
+                        .setForwarded(true)
+                        .setMsg(appResponse.getMsg())
+                        .addAllTweets(appResponse.getTweetsList())
+                        .build();
+            } else {
+                response = BalanceResponse.newBuilder()
+                        .setForwarded(false)
+                        .setMsg("Cannot connect to app server")
+                        .build();
+            }
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
         }
     }
 
@@ -87,6 +131,33 @@ public class LoadBalancer {
                 logger.info("Keyboard Interrupt, Shutdown...");
             }
         });
+
+        initializeChannels();
+
+        try {
+            this.grpcServer = ServerBuilder.forPort(port)
+                    .addService(new LoadServiceImpl())
+                    .build()
+                    .start();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    private void initializeChannels() {
+        for (Pair<String, Integer> appServerNode: serverConfig.appServerList) {
+            String address = appServerNode.getKey().toLowerCase().equals("localhost")? LOCAL_IP : appServerNode.getKey();
+            buildChannels(ManagedChannelBuilder
+                    .forAddress(address, appServerNode.getValue())
+                    .usePlaintext()
+                    .build(),
+                    address + ":" + String.valueOf(appServerNode.getValue()));
+        }
+    }
+
+    private void buildChannels(ManagedChannel channel, String address) {
+        this.channels.put(address, channel);
+        this.stubs.put(address, AppServiceGrpc.newBlockingStub(channel));
     }
 
     private void stop() {
