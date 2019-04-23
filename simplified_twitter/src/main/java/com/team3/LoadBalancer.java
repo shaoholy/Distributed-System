@@ -23,8 +23,6 @@ public class LoadBalancer {
     private SortedMap<Integer, String> virtualNodes = new TreeMap<Integer, String>();
     private List<String> realNodes = new ArrayList<String>();
     private final String LOCAL_IP = "127.0.0.1";
-    private List<ManagedChannel> channels = new ArrayList<ManagedChannel>();
-    private List<AppServiceGrpc.AppServiceBlockingStub> stubs = new ArrayList<AppServiceGrpc.AppServiceBlockingStub>();
 
     LoadBalancer(int port, ServerConfig serverConfig) {
         this.port = port;
