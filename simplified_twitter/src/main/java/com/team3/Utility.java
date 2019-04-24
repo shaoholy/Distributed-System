@@ -73,7 +73,7 @@ public class Utility {
 
         } catch (Exception e) {
             logger.error("Cannot parse config file" +
-                    configPath + ": ", e.getMessage());
+                    configPath + ": " + e.getMessage());
         }
         return null;
     }
