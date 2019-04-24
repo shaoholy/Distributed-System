@@ -19,7 +19,7 @@ message Tweet {
 message ClientRequest {
     string requestId = 1;
     string address = 2;
-    int64 epoch = 4;
+    int64 epoch = 4; // timestamp
     bool loggedIn = 5;
     // optional, created by logInOut service, main db updated by first tweet
     string userId = 6;
