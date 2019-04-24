@@ -19,18 +19,18 @@ message Tweet {
 message ClientRequest {
     string requestId = 1;
     string address = 2;
-    int64 epoch = 3;
-    bool loggedIn = 4;
+    int64 epoch = 4;
+    bool loggedIn = 5;
     // optional, created by logInOut service, main db updated by first tweet
-    string userId = 5;
+    string userId = 6;
     // action: login, logout, signup, tweet, read, follow, unfollow
-    string action = 6;
+    string action = 7;
     // optional, proto3 eliminate this keyword
-    Tweet tweet = 7;
+    Tweet tweet = 8;
     // optional
-    LogMsg logMsg = 8;
+    LogMsg logMsg = 9;
     //optional
-    string secondaryUserName = 9;
+    string secondaryUserName = 10;
 }
 
 

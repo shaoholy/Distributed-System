@@ -12,5 +12,7 @@ service LoadService {
 message BalanceResponse {
     bool forwarded = 1;
     string msg = 2;
+    //optional
+    repeated Tweet tweets = 3;
 }
 

@@ -12,4 +12,6 @@ service AppService {
 message AppResponse {
     bool succeed = 1;
     string msg = 2;
+    // optional
+    repeated Tweet tweets = 3;
 }
