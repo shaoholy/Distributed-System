@@ -77,8 +77,8 @@ public class LoadBalancer {
     class LoadServiceImpl extends LoadServiceGrpc.LoadServiceImplBase {
         @Override
         public void balance(ClientRequest request, StreamObserver<BalanceResponse> responseObserver) {
-            String addrStr = request.getAddress() + ":" + String.valueOf(request.getPort());
-            String nodeAddr = getServer(addrStr);
+            String nodeAddr = getServer(request.getAddress() + request.getRequestId());
+            logger.info("Forward to app server " + nodeAddr);
             int retry = 0;
             boolean firsttime = true;
             AppResponse appResponse = null;
@@ -90,10 +90,11 @@ public class LoadBalancer {
                                 .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
                                 .clientRequestHandling(request);
                     } else {
-                        for (AppServiceGrpc.AppServiceBlockingStub stub:stubs.values()) {
-                            appResponse = stub
+                        for (Map.Entry<String, AppServiceGrpc.AppServiceBlockingStub> stubPair:stubs.entrySet()) {
+                            appResponse = stubPair.getValue()
                                     .withDeadlineAfter(STUB_TIMEOUT, TimeUnit.SECONDS)
                                     .clientRequestHandling(request);
+                            logger.info("Finally forwarded to app server " + stubPair.getKey());
                             break;
                         }
                     }
@@ -113,6 +114,7 @@ public class LoadBalancer {
                         .addAllTweets(appResponse.getTweetsList())
                         .build();
             } else {
+                logger.warn("Cannot connect to app server");
                 response = BalanceResponse.newBuilder()
                         .setForwarded(false)
                         .setMsg("Cannot connect to app server")
@@ -195,14 +197,18 @@ public class LoadBalancer {
 
         Scanner scanner = new Scanner(System.in);
 
-        while (true) {
-            logger.info("Please give one valid port number");
-            if (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] line_arg = line.trim().split("\\s+");
-                if (line_arg.length >= 1 && (portPair = Utility.isPortValid(line_arg[0])).getKey()) {
-                    port = portPair.getValue();
-                    break;
+        if (args.length == 1 && (portPair = Utility.isPortValid(args[0])).getKey()) {
+            port = portPair.getValue();
+        } else {
+            while (true) {
+                logger.info("Please give one valid port number");
+                if (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+                    String[] line_arg = line.trim().split("\\s+");
+                    if (line_arg.length >= 1 && (portPair = Utility.isPortValid(line_arg[0])).getKey()) {
+                        port = portPair.getValue();
+                        break;
+                    }
                 }
             }
         }
